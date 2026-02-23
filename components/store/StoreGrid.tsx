@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { StoreCard } from "@/components/store/StoreCard"
 import { Search, Filter, Box, UploadCloud } from "lucide-react"
 import Link from "next/link"
@@ -35,10 +35,15 @@ interface StoreGridProps {
 }
 
 export function StoreGrid({ initialApps }: StoreGridProps) {
-    const [apps] = useState<AppData[]>(initialApps)
+    const [apps, setApps] = useState<AppData[]>(initialApps)
     const [selectedCategory, setSelectedCategory] = useState("all")
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+
+    // Sync state with props when server data refreshes
+    useEffect(() => {
+        setApps(initialApps)
+    }, [initialApps])
 
     const filteredApps = apps.filter(app => {
         const matchesCategory = selectedCategory === "all" || app.category?.toLowerCase() === selectedCategory.toLowerCase()

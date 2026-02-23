@@ -1,6 +1,8 @@
 import DashboardContent from "@/components/dashboard-with-collapsible-sidebar";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+
+export const dynamic = 'force-dynamic';
 import { startOfDay, subDays, isSameDay, format } from "date-fns";
 
 export default async function DashboardPage() {

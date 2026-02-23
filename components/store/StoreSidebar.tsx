@@ -34,18 +34,16 @@ export function StoreSidebar() {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
-    const supabase = createClient()
-
     const [userAuth, setUserAuth] = useState<any>(null)
-
     useEffect(() => {
         setMounted(true)
+        const supabase = createClient()
+
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             setUserAuth(user)
 
             if (user) {
-                // Fetch profile to get custom avatar
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('avatar_url')
@@ -70,17 +68,12 @@ export function StoreSidebar() {
     if (!mounted) {
         return (
             <aside className="fixed left-0 top-0 h-screen w-20 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col items-center py-6 z-40">
-                {/* Fallback skeleton or just the structure to prevent layout shift */}
                 <div className="mb-8 p-1 w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
                 <nav className="flex-1 flex flex-col gap-4 w-full px-4" />
             </aside>
         )
     }
 
-    // Determine if dark mode is active (handling 'system' preference if needed, but for toggle usually we check specific value or resolvedTheme)
-    // simpler: just check theme === 'dark' or if using system, resolvedTheme
-    // For this UI, let's use the explicit theme or assume system maps correctly.
-    // Ideally use resolvedTheme from useTheme
     const isDarkMode = theme === "dark"
 
     const handleLogoutClick = () => {
@@ -88,6 +81,7 @@ export function StoreSidebar() {
     }
 
     const confirmLogout = async () => {
+        const supabase = createClient()
         await supabase.auth.signOut()
         window.location.href = '/'
     }

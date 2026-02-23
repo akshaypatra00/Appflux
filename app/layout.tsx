@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Appflux",
   description: "Appflux is a free alternative to app stores. Publish instantly, download securely, and connect with a community of indie developers building the next generation of apps.",
+  icons: {
+    icon: '/icon.svg?v=1',
+  },
 };
 
 export default function RootLayout({

@@ -15,8 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Appflux",
-  description: "Appflux is a free alternative to app stores. Publish instantly, download securely, and connect with a community of indie developers building the next generation of apps.",
+  title: "AppFlux",
+  description: "AppFlux is a decentralized alternative to traditional app stores. Instantly deploy apps from GitHub and distribute without platform gatekeeping.",
+  robots: "index, follow",
+  alternates: {
+    canonical: "https://appflux.in",
+  },
   icons: {
     icon: '/icon.svg?v=1',
   },

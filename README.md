@@ -1,38 +1,109 @@
-# AppFlux
+# AppFlux 🚀  
+**Decentralized App Distribution, Powered by GitHub**
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+AppFlux is a next-generation, decentralized alternative to traditional mobile app stores. It enables developers to deploy applications directly from GitHub into a community-driven store—without platform gatekeeping, long review cycles, or restrictive policies.
 
-## Getting Started
+---
 
-First, run the development server:
+## ✨ Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 🔐 Smart Authentication & Onboarding
+- Secure authentication via Supabase Auth (Email, Google, GitHub OAuth)
+- Multi-step onboarding to capture developer intent and profile metadata
+- Automatic sync between auth metadata and public profiles
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🧑‍💻 Developer Dashboard
+- Real-time analytics for views, downloads, and deployments
+- Conversion metrics (Downloads per View)
+- Deployment streak system to encourage consistent shipping
+- Live notifications for build and store activity
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🔁 Direct GitHub Deployment
+- GitHub OAuth & PAT-based repository linking
+- Automatic framework detection (Flutter, React Native, Kotlin/Java)
+- APK artifact scanning from GitHub Releases
+- Terminal-style visual build simulation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🏪 Community-Driven App Store
+- Real-time fuzzy search and category filtering
+- Rich, responsive app cards
+- Secure asset storage for icons, screenshots, and APKs
+- Download tracking and sharing
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🧱 Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Frontend
+- **Framework**: Next.js 15+ (App Router)
+- **Language**: TypeScript (Strict Mode)
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **3D & Motion**: React Three Fiber, Spline, Rive
+- **Icons**: Lucide React, Tabler Icons
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Backend & Infrastructure
+- **BaaS**: Supabase
+- **Database**: PostgreSQL (Row Level Security enabled)
+- **Auth**: Supabase Auth (OAuth + Email)
+- **Storage**: Supabase Buckets (APKs, icons, avatars)
+- **Server Logic**: Next.js Server Actions & API Routes
 
-## Deploy on Vercel
+### Integrations
+- **GitHub API** (Octokit) for repo sync and release parsing
+- **Utilities**: date-fns, JSZip, Sonner
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🗄️ Database Overview
+
+| Table | Purpose |
+|------|--------|
+| `profiles` | User identity and metadata |
+| `apps` | App listings and store data |
+| `deployments` | Build and deployment history |
+| `notifications` | Real-time user alerts |
+
+All tables are protected with **Row Level Security (RLS)**.
+
+---
+
+## 🧠 Problem Statement
+
+Traditional app stores introduce significant friction:
+- Long review cycles
+- Arbitrary rejections
+- High platform fees
+- Limited control for indie developers
+
+Developers lack a fast, transparent way to distribute apps directly from their codebase.
+
+---
+
+## ✅ What AppFlux Solves
+
+- 🚫 Removes centralized gatekeeping
+- ⚡ Enables instant deployment from GitHub
+- 🔍 Makes app discovery community-driven
+- 📊 Gives developers ownership of analytics
+- 🔐 Ensures security with fine-grained access control
+
+---
+
+## 🛣️ Roadmap
+
+- Paid apps via Stripe
+- Private app stores for teams
+- In-browser APK emulator
+- AI-generated app descriptions
+
+---
+
+## 📦 Status
+**v1.0.0 – Feature Complete**  
+Production-ready and actively evolving.
+
+---
+
+## 🤝 Contributions
+Feedback, issues, and PRs are welcome.

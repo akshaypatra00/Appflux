@@ -59,12 +59,16 @@ export async function updateSession(request: NextRequest) {
     )
 
     // Important: Do not remove this line. It refreshes the session.
+    // We wrap it in a try-catch to prevent network timeouts from crashing the entire app.
     try {
-        await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+            console.log('Middleware: User not found or session expired');
+        }
     } catch (error) {
-        // If fetch fails (like a networking error), we catch it here
-        // so the entire app doesn't crash.
-        console.error('Middleware: getUser fetch failed', error)
+        // If fetch fails (like a networking error/timeout), we catch it here
+        // so the page can still render (though auth-dependent features will fail).
+        console.error('Middleware: Supabase connection timeout or network error', error);
     }
 
     return response

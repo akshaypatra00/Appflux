@@ -1,12 +1,10 @@
+"use client";
+
 import { TuringLanding } from "@/components/ui/hero-landing-page";
-import { ContainerScroll } from "@/components/container-scroll-animation";
-import { createClient } from "@/lib/supabase/server";
+import { useAuth } from "@/components/auth-provider";
 
-export const dynamic = 'force-dynamic';
-
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function Home() {
+  const { user } = useAuth();
 
   return (
     <>

@@ -93,19 +93,23 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const password = formData.get('password') as string;
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting sign in for:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error("Supabase Sign In Error:", error);
         throw error;
       }
 
+      console.log("Sign in successful for user:", data?.user?.id);
       router.push('/store'); // Redirect to dashboard/home on success
       router.refresh(); // Refresh to update server components
     } catch (e: any) {
-      setError(e.message);
+      console.error("Sign in process exception:", e);
+      setError(e.message || "Invalid login credentials or network error");
     } finally {
       setIsLoading(false);
     }

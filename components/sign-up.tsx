@@ -93,6 +93,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         }
 
         try {
+            console.log("Starting sign up process for:", email);
             // First, try to sign up with metadata
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -109,12 +110,13 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             });
 
             if (error) {
+                console.error("Supabase Auth Error:", error);
                 throw error;
             }
 
+            console.log("Auth signup successful, checked for user data:", data?.user?.id);
+
             // Fallback: If sign up successful, try to manually insert profile if trigger failed or didn't run
-            // Note: This might fail if RLS prevents it or if user is not fully authenticated yet, 
-            // but the Critical Step (creating the user) is done.
             if (data?.user) {
                 const { error: profileError } = await supabase
                     .from('profiles')
@@ -129,15 +131,17 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
                     }, { onConflict: 'id' });
 
                 if (profileError) {
-                    console.error("Profile creation error (non-fatal):", profileError);
-                    // We don't throw here because the user account IS created.
+                    console.warn("Profile creation error (non-fatal):", profileError.message);
+                } else {
+                    console.log("Profile created/updated successfully");
                 }
             }
 
             setUserEmail(email);
             setIsVerificationSent(true);
         } catch (e: any) {
-            setError(e.message);
+            console.error("Sign up process exception:", e);
+            setError(e.message || "An unexpected error occurred during sign up");
         } finally {
             setIsLoading(false);
         }

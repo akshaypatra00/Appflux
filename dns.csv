@@ -1,0 +1,4 @@
+#TYPE Selected.Microsoft.DnsClient.Commands.DnsRecord_AAAA
+"Name","Type","IPAddress"
+"twwmowovyrhdnzskppcq.supabase.co","AAAA","2405:200:1607:2820:41::36"
+"twwmowovyrhdnzskppcq.supabase.co","A","49.44.79.236"

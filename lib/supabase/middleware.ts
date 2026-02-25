@@ -55,16 +55,21 @@ export async function updateSession(request: NextRequest) {
                     })
                 },
             },
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-                detectSessionInUrl: false,
-            }
         }
     )
 
-    // Supabase auth check removed to prevent network timeouts as we migrate to Firebase.
-    // The middleware still handles cookie syncing for Supabase database access if needed.
+    // Important: Do not remove this line. It refreshes the session.
+    // We wrap it in a try-catch to prevent network timeouts from crashing the entire app.
+    try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+            console.log('Middleware: User not found or session expired');
+        }
+    } catch (error) {
+        // If fetch fails (like a networking error/timeout), we catch it here
+        // so the page can still render (though auth-dependent features will fail).
+        console.error('Middleware: Supabase connection timeout or network error', error);
+    }
 
     return response
 }

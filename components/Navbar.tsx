@@ -19,15 +19,15 @@ export function Navbar({ user: initialUser }: NavbarProps) {
     useEffect(() => {
         const fetchProfile = async () => {
             if (initialUser) {
-                // First try getting from Firebase photoURL or metadata
-                const metadataAvatar = initialUser.photoURL || getUserAvatar(initialUser)
+                // First try getting from metadata
+                const metadataAvatar = getUserAvatar(initialUser)
                 if (metadataAvatar) setUserAvatar(metadataAvatar)
 
                 // Then fetch from profiles table to get the latest custom upload
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('avatar_url')
-                    .eq('id', initialUser.uid)
+                    .eq('id', initialUser.id)
                     .single()
 
                 if (profile?.avatar_url) {

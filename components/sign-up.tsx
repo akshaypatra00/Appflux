@@ -5,6 +5,14 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { auth } from '@/lib/firebase';
+import {
+    createUserWithEmailAndPassword,
+    updateProfile,
+    signInWithPopup,
+    GoogleAuthProvider,
+    GithubAuthProvider
+} from 'firebase/auth';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -73,74 +81,40 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             return;
         }
 
-        if (!firstName || !lastName || !username) {
-            setError("All fields are required");
-            setIsLoading(false);
-            return;
-        }
-
-        // Check if username is already taken
-        const { data: existingUser } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('username', username)
-            .single();
-
-        if (existingUser) {
-            setError("Username is already taken");
-            setIsLoading(false);
-            return;
-        }
-
         try {
-            console.log("Starting sign up process for:", email);
-            // First, try to sign up with metadata
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-                    data: {
-                        first_name: firstName,
-                        last_name: lastName,
-                        username: username,
-                        full_name: `${firstName} ${lastName}`.trim(),
-                    },
-                },
+            console.log("Starting Firebase sign up process for:", email);
+
+            // 1. Create Firebase User
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 2. Update Firebase display name
+            await updateProfile(user, {
+                displayName: `${firstName} ${lastName}`.trim(),
             });
 
-            if (error) {
-                console.error("Supabase Auth Error:", error);
-                throw error;
+            console.log("Firebase Auth success, creating Supabase profile...");
+
+            // 3. Create profile in Supabase DB (using Firebase UID as the ID)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: user.uid, // Use Firebase UID
+                    email,
+                    first_name: firstName,
+                    last_name: lastName,
+                    username: username,
+                    full_name: `${firstName} ${lastName}`.trim(),
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'id' });
+
+            if (profileError) {
+                console.warn("Supabase profile sync error:", profileError.message);
             }
 
-            console.log("Auth signup successful, checked for user data:", data?.user?.id);
-
-            // Fallback: If sign up successful, try to manually insert profile if trigger failed or didn't run
-            if (data?.user) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: data.user.id,
-                        email,
-                        first_name: firstName,
-                        last_name: lastName,
-                        username: username,
-                        full_name: `${firstName} ${lastName}`.trim(),
-                        updated_at: new Date().toISOString(),
-                    }, { onConflict: 'id' });
-
-                if (profileError) {
-                    console.warn("Profile creation error (non-fatal):", profileError.message);
-                } else {
-                    console.log("Profile created/updated successfully");
-                }
-            }
-
-            setUserEmail(email);
-            setIsVerificationSent(true);
+            router.push('/onboarding');
         } catch (e: any) {
-            console.error("Sign up process exception:", e);
+            console.error("Firebase sign up error:", e);
             setError(e.message || "An unexpected error occurred during sign up");
         } finally {
             setIsLoading(false);
@@ -149,14 +123,10 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
 
     const handleGoogleSignUp = async () => {
         setIsLoading(true);
+        const provider = new GoogleAuthProvider();
         try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-                },
-            });
-            if (error) throw error;
+            const result = await signInWithPopup(auth, provider);
+            router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);
             setIsLoading(false);
@@ -165,14 +135,10 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
 
     const handleGithubSignUp = async () => {
         setIsLoading(true);
+        const provider = new GithubAuthProvider();
         try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'github',
-                options: {
-                    redirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-                },
-            });
-            if (error) throw error;
+            const result = await signInWithPopup(auth, provider);
+            router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);
             setIsLoading(false);

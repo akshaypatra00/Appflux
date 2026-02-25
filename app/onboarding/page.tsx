@@ -40,30 +40,32 @@ const GlassInputWrapper = ({ children, className }: { children: React.ReactNode,
     </div>
 )
 
+import { useAuth } from "@/components/auth-provider"
+
 export default function OnboardingPage() {
     const [isLoading, setIsLoading] = useState(false)
-    const [user, setUser] = useState<any>(null)
     const [step, setStep] = useState(1)
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
+    const { user, loading: authLoading } = useAuth()
     const supabase = createClient()
 
     useEffect(() => {
-        const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                router.push('/sign-in')
-                return
-            }
-            setUser(user)
+        if (authLoading) return
 
+        if (!user) {
+            router.push('/sign-in')
+            return
+        }
+
+        const checkProfile = async () => {
             // Sync email if profile exists
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', user.id)
+                .eq('id', user.uid)
                 .single()
 
             if (profile) {
@@ -75,8 +77,8 @@ export default function OnboardingPage() {
                 }
             }
         }
-        checkUser()
-    }, [router, supabase])
+        checkProfile()
+    }, [user, authLoading, router, supabase])
 
     const handleAvatarClick = () => {
         fileInputRef.current?.click()
@@ -89,7 +91,7 @@ export default function OnboardingPage() {
         setIsUploadingAvatar(true)
         try {
             const fileExt = file.name.split('.').pop()
-            const fileName = `${user.id}-${Math.random()}.${fileExt}`
+            const fileName = `${user.uid}-${Math.random()}.${fileExt}`
             const filePath = `profiles/${fileName}`
 
             const { error: uploadError } = await supabase.storage
@@ -104,16 +106,17 @@ export default function OnboardingPage() {
 
             setAvatarUrl(publicUrl)
 
-            // Update Auth Metadata so it shows up in Navbar without needing a profile fetch
-            await supabase.auth.updateUser({
-                data: { picture: publicUrl, avatar_url: publicUrl }
+            // Update Auth Metadata using Firebase logic
+            const { updateProfile } = await import('firebase/auth')
+            await updateProfile(user, {
+                photoURL: publicUrl
             })
 
             // Update profile immediately for avatar
             await supabase
                 .from('profiles')
                 .upsert({
-                    id: user.id,
+                    id: user.uid,
                     avatar_url: publicUrl,
                     updated_at: new Date().toISOString()
                 })
@@ -143,12 +146,14 @@ export default function OnboardingPage() {
         const referral = formData.get('referral') as string
 
         try {
+            if (!user) return
+
             // Check username availability
             const { data: existingUser } = await supabase
                 .from('profiles')
                 .select('username')
                 .eq('username', username)
-                .neq('id', user.id)
+                .neq('id', user.uid)
                 .single()
 
             if (existingUser) {
@@ -161,7 +166,7 @@ export default function OnboardingPage() {
             const { error } = await supabase
                 .from('profiles')
                 .upsert({
-                    id: user.id,
+                    id: user.uid,
                     username,
                     first_name: firstName,
                     last_name: lastName,
@@ -175,14 +180,10 @@ export default function OnboardingPage() {
 
             if (error) throw error
 
-            // Sync with Auth metadata for redundancy and server-side sessions
-            await supabase.auth.updateUser({
-                data: {
-                    full_name: `${firstName} ${lastName}`.trim(),
-                    first_name: firstName,
-                    last_name: lastName,
-                    username: username
-                }
+            // Sync with Firebase Auth metadata
+            const { updateProfile } = await import('firebase/auth')
+            await updateProfile(user, {
+                displayName: `${firstName} ${lastName}`.trim()
             })
 
             toast.success("Welcome aboard!")

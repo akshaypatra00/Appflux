@@ -6,6 +6,7 @@ import { FolderUp, Github, Loader2, Search, GitBranch, ChevronDown, Terminal, Gl
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
+import { useAuth } from '@/components/auth-provider';
 
 // Types for form state
 interface DeployState {
@@ -82,9 +83,13 @@ function DeployPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
+    const { user, loading: authLoading } = useAuth();
+
     // Check for existing GitHub session
     useEffect(() => {
         const checkGithubConnection = async () => {
+            if (authLoading || !user) return;
+
             const errorCode = searchParams.get('error_code');
             const errorDescription = searchParams.get('error_description');
 
@@ -96,39 +101,25 @@ function DeployPageContent() {
                     isLinking: false,
                     error: "Account Conflict: This GitHub account is linked to another user. Please use a Personal Access Token instead."
                 }));
-                // Clean URL
                 window.history.replaceState({}, '', window.location.pathname);
             }
 
             const { data: { session } } = await supabase.auth.getSession();
-            const { data: { user } } = await supabase.auth.getUser();
-
-            if (!user) return;
-
-            const isLinked = user.identities?.some((id: any) => id.provider === 'github');
 
             // Check for saved PAT
-            const savedPat = localStorage.getItem(`github_pat_${user.id}`);
+            const savedPat = localStorage.getItem(`github_pat_${user.uid}`);
 
-            if (isLinked) {
-                // If linked, ignore redundant connection errors (override error if meaningful connection exists)
+            // For now, we still check Supabase session for GitHub token if available
+            if (session?.provider_token) {
                 setState(prev => ({ ...prev, githubConnected: true, isLoadingRepos: true, error: null, showPatInput: false }));
-                if (session?.provider_token) {
-                    fetchGithubRepos(session.provider_token);
-                } else if (session?.user?.app_metadata?.provider === 'github' && session?.access_token) {
-                    fetchGithubRepos(session.access_token);
-                } else {
-                    setState(prev => ({ ...prev, isLoadingRepos: false, repositories: [] }));
-                }
+                fetchGithubRepos(session.provider_token);
             } else if (savedPat) {
-                // Use saved PAT if available and not linked
                 setState(prev => ({ ...prev, githubConnected: true, isLoadingRepos: true, patToken: savedPat, error: null, showPatInput: false }));
                 fetchGithubRepos(savedPat);
             }
-            // Else: Leave state as set by error handling block above
         };
         checkGithubConnection();
-    }, [searchParams]);
+    }, [user, authLoading, searchParams]);
 
     const fetchGithubRepos = async (token: string) => {
         try {

@@ -5,6 +5,13 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from "next/link";
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  GithubAuthProvider
+} from 'firebase/auth';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -93,22 +100,14 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const password = formData.get('password') as string;
 
     try {
-      console.log("Attempting sign in for:", email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log("Attempting Firebase sign in for:", email);
+      await signInWithEmailAndPassword(auth, email, password);
 
-      if (error) {
-        console.error("Supabase Sign In Error:", error);
-        throw error;
-      }
-
-      console.log("Sign in successful for user:", data?.user?.id);
-      router.push('/store'); // Redirect to dashboard/home on success
-      router.refresh(); // Refresh to update server components
+      console.log("Firebase Sign in successful");
+      router.push('/store');
+      router.refresh();
     } catch (e: any) {
-      console.error("Sign in process exception:", e);
+      console.error("Firebase sign in error:", e);
       setError(e.message || "Invalid login credentials or network error");
     } finally {
       setIsLoading(false);
@@ -117,14 +116,10 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    const provider = new GoogleAuthProvider();
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/store`,
-        },
-      });
-      if (error) throw error;
+      await signInWithPopup(auth, provider);
+      router.push('/store');
     } catch (e: any) {
       setError(e.message);
       setIsLoading(false);
@@ -133,14 +128,10 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
   const handleGithubSignIn = async () => {
     setIsLoading(true);
+    const provider = new GithubAuthProvider();
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/store`,
-        },
-      });
-      if (error) throw error;
+      await signInWithPopup(auth, provider);
+      router.push('/store');
     } catch (e: any) {
       setError(e.message);
       setIsLoading(false);

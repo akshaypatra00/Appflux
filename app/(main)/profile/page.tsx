@@ -20,8 +20,12 @@ interface ProfileData {
     email: string;
 }
 
+import { useAuth } from '@/components/auth-provider';
+import { signOut as firebaseSignOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+
 export default function ProfilePage() {
-    const [user, setUser] = useState<any>(null);
+    const { user, loading: authLoading } = useAuth();
     const [profile, setProfile] = useState<ProfileData>({
         username: '',
         first_name: '',
@@ -38,20 +42,16 @@ export default function ProfilePage() {
     const supabase = createClient();
     const router = useRouter();
 
-    const fetchUserAndProfile = async () => {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) {
-            router.push('/sign-in');
-            return;
-        }
-        setUser(user);
-        setAvatarUrl(getUserAvatar(user));
+    const fetchProfile = async () => {
+        if (!user) return;
 
-        // Fetch Profile from 'profiles' table
-        const { data: profileData, error: profileError } = await supabase
+        setAvatarUrl(user.photoURL || getUserAvatar(user));
+
+        // Fetch Profile from 'profiles' table using Firebase UID
+        const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', user.id)
+            .eq('id', user.uid)
             .single();
 
         if (profileData) {
@@ -62,17 +62,15 @@ export default function ProfilePage() {
                 full_name: profileData.full_name || '',
                 email: profileData.email || user.email || '',
             });
-            // If the profile has a specific avatar that overrides the auth metadata, use it
             if (profileData.avatar_url) {
                 setAvatarUrl(profileData.avatar_url);
             }
         } else {
-            // Fallback to metadata if no profile row exists (for older users)
             setProfile({
-                username: user.user_metadata?.username || '',
-                first_name: user.user_metadata?.first_name || '',
-                last_name: user.user_metadata?.last_name || '',
-                full_name: user.user_metadata?.full_name || '',
+                username: '',
+                first_name: '',
+                last_name: '',
+                full_name: user.displayName || '',
                 email: user.email || '',
             })
         }
@@ -80,15 +78,21 @@ export default function ProfilePage() {
     };
 
     useEffect(() => {
-        fetchUserAndProfile();
-    }, [router, supabase]);
+        if (!authLoading) {
+            if (!user) {
+                router.push('/sign-in');
+            } else {
+                fetchProfile();
+            }
+        }
+    }, [user, authLoading, router, supabase]);
 
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (!event.target.files || event.target.files.length === 0) return;
+        if (!event.target.files || event.target.files.length === 0 || !user) return;
 
         const file = event.target.files[0];
         const fileExt = file.name.split('.').pop();
-        const fileName = `profiles/${user.id}/${Date.now()}.${fileExt}`;
+        const fileName = `profiles/${user.uid}/${Date.now()}.${fileExt}`;
 
         setUploading(true);
         setMessage(null);
@@ -104,17 +108,17 @@ export default function ProfilePage() {
                 .from('app-assets')
                 .getPublicUrl(fileName);
 
-            // Update Auth Metadata
-            const { error: updateAuthError } = await supabase.auth.updateUser({
-                data: { picture: publicUrl }
+            // Update Firebase Profile
+            const { updateProfile } = await import('firebase/auth');
+            await updateProfile(user, {
+                photoURL: publicUrl
             });
-            if (updateAuthError) throw updateAuthError;
 
             // Update Profiles Table
             const { error: updateProfileError } = await supabase
                 .from('profiles')
                 .upsert({
-                    id: user.id,
+                    id: user.uid,
                     avatar_url: publicUrl,
                     updated_at: new Date().toISOString()
                 });
@@ -123,7 +127,6 @@ export default function ProfilePage() {
 
             setAvatarUrl(publicUrl);
             setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
-            router.refresh();
         } catch (error: any) {
             setMessage({ type: 'error', text: error.message || 'Error updating profile picture' });
         } finally {
@@ -133,12 +136,13 @@ export default function ProfilePage() {
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) return;
         setSaving(true);
         setMessage(null);
 
         try {
             const updates = {
-                id: user.id,
+                id: user.uid,
                 username: profile.username,
                 first_name: profile.first_name,
                 last_name: profile.last_name,
@@ -152,6 +156,12 @@ export default function ProfilePage() {
 
             if (error) throw error;
 
+            // Optional: Update Firebase displayName
+            const { updateProfile } = await import('firebase/auth');
+            await updateProfile(user, {
+                displayName: updates.full_name
+            });
+
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
         } catch (error: any) {
             setMessage({ type: 'error', text: error.message || 'Error updating profile' });
@@ -160,26 +170,10 @@ export default function ProfilePage() {
         }
     };
 
-    const handleUnlinkIdentity = async (identity: any) => {
-        if (!confirm('Are you sure you want to disconnect this account? You may lose access if you do not have another way to sign in.')) return;
-
-        try {
-            const { error } = await supabase.auth.unlinkIdentity(identity);
-            if (error) throw error;
-
-            setMessage({ type: 'success', text: 'Account disconnected successfully.' });
-            // Refresh user data
-            fetchUserAndProfile();
-        } catch (error: any) {
-            setMessage({ type: 'error', text: error.message || 'Error disconnecting account' });
-        }
-    };
-
     const handleSignOut = async () => {
         setLoading(true);
         try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
+            await firebaseSignOut(auth);
             router.push('/sign-in');
         } catch (error: any) {
             setMessage({ type: 'error', text: error.message || 'Error signing out' });
@@ -353,46 +347,28 @@ export default function ProfilePage() {
                             <div className="pt-6 border-t border-border space-y-4">
                                 <h4 className="text-sm font-medium text-muted-foreground">Connected Accounts</h4>
                                 <div className="space-y-3">
-                                    {user.identities?.map((identity: any) => {
-                                        const isEmail = identity.provider === 'email';
-                                        // Prevent disconnecting if it's the only method (simplified logic: length check)
-                                        const canDisconnect = user.identities.length > 1;
-
+                                    {user?.providerData?.map((provider: any) => {
                                         return (
-                                            <div key={identity.id} className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
+                                            <div key={provider.uid} className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
                                                 <div className="flex items-center gap-3">
                                                     <div className="bg-muted p-2 rounded-md capitalize font-medium text-sm text-foreground">
-                                                        {identity.provider === 'github' ? <Github className="w-5 h-5" /> :
-                                                            identity.provider === 'google' ? <span className="font-bold text-lg">G</span> :
+                                                        {provider.providerId === 'github.com' ? <Github className="w-5 h-5" /> :
+                                                            provider.providerId === 'google.com' ? <span className="font-bold text-lg">G</span> :
                                                                 <Globe className="w-5 h-5" />}
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-medium uppercase text-card-foreground">
-                                                            {identity.provider}
+                                                            {provider.providerId.split('.')[0]}
                                                         </span>
                                                         <span className="text-xs text-muted-foreground">
-                                                            {isEmail ? identity.identity_data.email : `ID: ${identity.id.slice(0, 8)}...`}
+                                                            {provider.email || provider.uid.slice(0, 8)}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {canDisconnect && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleUnlinkIdentity(identity)}
-                                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-3"
-                                                        title="Disconnect account"
-                                                    >
-                                                        <Trash2 className="w-4 h-4 mr-2" />
-                                                        Disconnect
-                                                    </Button>
-                                                )}
-                                                {!canDisconnect && (
-                                                    <div className="text-xs text-muted-foreground italic px-2">
-                                                        Primary
-                                                    </div>
-                                                )}
+                                                <div className="text-xs text-muted-foreground italic px-2">
+                                                    Connected
+                                                </div>
                                             </div>
                                         );
                                     })}

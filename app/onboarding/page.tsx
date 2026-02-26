@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { Loader2, Camera, ChevronRight, User, Briefcase, Info, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+export const dynamic = 'force-dynamic';
+
 const positions = [
     "Indie Developer",
     "Company Developer",

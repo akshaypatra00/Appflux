@@ -104,8 +104,8 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       await signInWithEmailAndPassword(auth, email, password);
 
       console.log("Firebase Sign in successful");
-      router.push('/store');
       router.refresh();
+      router.push('/store');
     } catch (e: any) {
       console.error("Firebase sign in error:", e);
       setError(e.message || "Invalid login credentials or network error");
@@ -119,6 +119,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
+      router.refresh();
       router.push('/onboarding');
     } catch (e: any) {
       setError(e.message);
@@ -131,6 +132,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const provider = new GithubAuthProvider();
     try {
       await signInWithPopup(auth, provider);
+      router.refresh();
       router.push('/onboarding');
     } catch (e: any) {
       setError(e.message);

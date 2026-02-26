@@ -117,7 +117,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
                 handleCodeInApp: true,
             };
             await sendEmailVerification(user, actionCodeSettings);
-            
+
             setUserEmail(email);
             setIsVerificationSent(true);
             // router.push('/onboarding'); // Don't redirect yet, let them see the verification msg
@@ -134,6 +134,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
+            router.refresh();
             router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);
@@ -146,6 +147,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         const provider = new GithubAuthProvider();
         try {
             await signInWithPopup(auth, provider);
+            router.refresh();
             router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);

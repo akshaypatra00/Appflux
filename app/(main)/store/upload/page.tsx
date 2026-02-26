@@ -10,6 +10,8 @@ import { useAuth } from "@/components/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic';
+
 export default function UploadAppPage() {
     const router = useRouter()
     const { user } = useAuth();

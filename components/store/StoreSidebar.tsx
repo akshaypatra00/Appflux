@@ -98,7 +98,9 @@ export function StoreSidebar() {
         <>
             <aside className="fixed left-0 top-0 h-screen w-20 bg-white dark:bg-black border-r border-black/10 dark:border-white/10 flex flex-col items-center py-6 z-40">
                 {/* Top Logo / Avatar Area */}
-                {userAuth ? (
+                {authLoading ? (
+                    <div className="mb-8 p-1 w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+                ) : userAuth ? (
                     <Link href="/profile" className="mb-8 p-1 rounded-full transition-colors cursor-pointer ring-2 ring-black/10 dark:ring-white/10 hover:ring-black/20 dark:hover:ring-white/20">
                         {userAvatar ? (
                             <div className="relative w-10 h-10 rounded-full overflow-hidden">

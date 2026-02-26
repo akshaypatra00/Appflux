@@ -1,5 +1,7 @@
 import { StoreSidebar } from "@/components/store/StoreSidebar"
 
+export const dynamic = 'force-dynamic';
+
 export default function MainLayout({
     children,
 }: {

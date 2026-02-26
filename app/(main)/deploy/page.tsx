@@ -6,7 +6,6 @@ import { FolderUp, Github, Loader2, Search, GitBranch, ChevronDown, Terminal, Gl
 import { useRouter, useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
 import { auth } from '@/lib/firebase';
-import { createClient } from '@/lib/supabase/client';
 import { GithubAuthProvider, signInWithPopup, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/components/auth-provider';
 
@@ -86,7 +85,6 @@ function DeployPageContent() {
 
     const router = useRouter();
     const searchParams = useSearchParams();
-    const supabase = createClient();
     const { user, loading: authLoading } = useAuth();
 
     // Check for existing GitHub session
@@ -414,67 +412,83 @@ function DeployPageContent() {
         try {
             if (!user) throw new Error('You must be logged in to publish');
 
-            // 1. Upload Icon to Supabase Storage
+            // 1. Upload Icon via Proxy
             let iconUrl = null;
             if (state.appDetails.iconFile) {
                 const fileName = `${user.uid}/${Date.now()}-icon-${state.appDetails.iconFile.name.replace(/\s+/g, '-')}`;
-                const { error: iconError } = await supabase.storage
-                    .from('app-assets')
-                    .upload(fileName, state.appDetails.iconFile);
+                const formData = new FormData();
+                formData.append('file', state.appDetails.iconFile);
+                formData.append('path', fileName);
+                formData.append('bucket', 'app-assets');
 
-                if (iconError) throw iconError;
-                iconUrl = supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl;
+                const res = await fetch('/api/storage/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    iconUrl = data.url;
+                }
             }
 
-            // 2. Upload Screenshots to Supabase Storage
+            // 2. Upload Screenshots via Proxy
             let screenshotUrls: string[] = [];
             if (state.appDetails.screenshotFiles && state.appDetails.screenshotFiles.length > 0) {
                 for (const file of state.appDetails.screenshotFiles) {
                     const fileName = `${user.uid}/${Date.now()}-screen-${file.name.replace(/\s+/g, '-')}`;
-                    const { error: sError } = await supabase.storage
-                        .from('app-assets')
-                        .upload(fileName, file);
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('path', fileName);
+                    formData.append('bucket', 'app-assets');
 
-                    if (sError) {
-                        console.error('Screenshot upload error:', sError);
-                        continue;
+                    const res = await fetch('/api/storage/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        screenshotUrls.push(data.url);
                     }
-                    screenshotUrls.push(supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl);
                 }
             }
 
-            // 3. Create App in Supabase
-            const appData = {
-                name: state.appDetails.name,
-                version: state.appDetails.version || '1.0.0',
-                description: state.appDetails.description,
-                github_download_url: state.appDetails.apkUrl,
-                icon_url: iconUrl,
-                screenshot_urls: screenshotUrls,
-                category: state.appDetails.category || 'Utilities',
-                user_id: user.uid,
-                download_count: 0,
-                views: 0,
-            };
+            // 3. Create App via Proxy
+            const appRes = await fetch('/api/apps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: state.appDetails.name,
+                    version: state.appDetails.version || '1.0.0',
+                    description: state.appDetails.description,
+                    github_download_url: state.appDetails.apkUrl,
+                    icon_url: iconUrl,
+                    screenshot_urls: screenshotUrls,
+                    category: state.appDetails.category || 'Utilities',
+                    user_id: user.uid,
+                    download_count: 0,
+                    views: 0,
+                })
+            });
 
-            const { data: newApp, error: appError } = await supabase
-                .from("apps")
-                .insert(appData)
-                .select()
-                .single();
+            if (!appRes.ok) {
+                const error = await appRes.json();
+                throw new Error(error.error || 'Failed to create app');
+            }
 
-            if (appError) throw appError;
+            const newApp = await appRes.json();
 
-            // 4. Record Deployment in Supabase
-            const { error: deployError } = await supabase
-                .from("deployments")
-                .insert({
+            // 4. Record Deployment via Proxy
+            await fetch('/api/deployments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     app_id: newApp.id,
                     user_id: user.uid,
                     status: 'success',
-                });
-
-            if (deployError) throw deployError;
+                })
+            });
 
             setState(prev => ({
                 ...prev,

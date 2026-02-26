@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { getUserAvatar } from '@/lib/avatar';
 
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,6 @@ export default function ProfilePage() {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
-    const supabase = createClient();
 
     const fetchProfile = async () => {
         if (!user) return;
@@ -48,32 +46,30 @@ export default function ProfilePage() {
         setAvatarUrl(user.photoURL || getUserAvatar(user));
 
         try {
-            // Fetch Profile from Supabase using Firebase UID
-            const { data: profileData, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.uid)
-                .single();
-
-            if (profileData) {
-                setProfile({
-                    username: profileData.username || '',
-                    first_name: profileData.first_name || '',
-                    last_name: profileData.last_name || '',
-                    full_name: profileData.full_name || '',
-                    email: profileData.email || user.email || '',
-                });
-                if (profileData.avatar_url) {
-                    setAvatarUrl(profileData.avatar_url);
+            // Fetch Profile from our Proxy
+            const res = await fetch(`/api/user/profile?uid=${user.uid}`);
+            if (res.ok) {
+                const profileData = await res.json();
+                if (profileData) {
+                    setProfile({
+                        username: profileData.username || '',
+                        first_name: profileData.first_name || '',
+                        last_name: profileData.last_name || '',
+                        full_name: profileData.full_name || '',
+                        email: profileData.email || user.email || '',
+                    });
+                    if (profileData.avatar_url) {
+                        setAvatarUrl(profileData.avatar_url);
+                    }
+                } else {
+                    setProfile({
+                        username: '',
+                        first_name: '',
+                        last_name: '',
+                        full_name: user.displayName || '',
+                        email: user.email || '',
+                    })
                 }
-            } else {
-                setProfile({
-                    username: '',
-                    first_name: '',
-                    last_name: '',
-                    full_name: user.displayName || '',
-                    email: user.email || '',
-                })
             }
         } catch (err) {
             console.error("Profile fetch error:", err);
@@ -110,14 +106,23 @@ export default function ProfilePage() {
         setMessage(null);
 
         try {
-            // Upload to Supabase Storage
-            const { data, error: uploadError } = await supabase.storage
-                .from('app-assets')
-                .upload(fileName, file);
+            // Upload to Supabase Storage via Proxy
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', fileName);
+            formData.append('bucket', 'app-assets');
 
-            if (uploadError) throw uploadError;
+            const uploadRes = await fetch('/api/storage/upload', {
+                method: 'POST',
+                body: formData
+            });
 
-            const publicUrl = supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl;
+            if (!uploadRes.ok) {
+                const errorData = await uploadRes.json();
+                throw new Error(errorData.error || "Upload failed");
+            }
+
+            const { url: publicUrl } = await uploadRes.json();
 
             // Update Firebase Profile
             const { updateProfile } = await import('firebase/auth');
@@ -125,12 +130,20 @@ export default function ProfilePage() {
                 photoURL: publicUrl
             });
 
-            // Update Profiles Collection in Supabase
-            await supabase.from('profiles').upsert({
-                id: user.uid,
-                avatar_url: publicUrl,
-                updated_at: new Date().toISOString()
+            // Update Profiles Collection via Proxy
+            const updateRes = await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: user.uid,
+                    avatar_url: publicUrl
+                })
             });
+
+            if (!updateRes.ok) {
+                const errorData = await updateRes.json();
+                throw new Error(errorData.error || "Failed to update profile record");
+            }
 
             setAvatarUrl(publicUrl);
             setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
@@ -155,13 +168,19 @@ export default function ProfilePage() {
                 first_name: profile.first_name,
                 last_name: profile.last_name,
                 full_name: `${profile.first_name} ${profile.last_name}`.trim(),
-                updated_at: new Date().toISOString(),
                 email: user.email || '',
             };
 
-            const { error: updateError } = await supabase.from('profiles').upsert(updates);
+            const updateRes = await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
 
-            if (updateError) throw updateError;
+            if (!updateRes.ok) {
+                const errorData = await updateRes.json();
+                throw new Error(errorData.error || "Failed to update profile");
+            }
 
             // Optional: Update Firebase displayName
             const { updateProfile } = await import('firebase/auth');

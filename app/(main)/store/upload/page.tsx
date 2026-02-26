@@ -5,7 +5,6 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, X, Loader2, Image as ImageIcon, CheckCircle, ShieldCheck, FileSearch, Lock, Zap, Cpu, Server } from "lucide-react"
 import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
-import { createClient } from "@/lib/supabase/client"; // Use Supabase for DB and Storage
 import { useAuth } from "@/components/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,6 @@ export const dynamic = 'force-dynamic';
 export default function UploadAppPage() {
     const router = useRouter()
     const { user } = useAuth();
-    const supabase = createClient();
     const [isLoading, setIsLoading] = useState(false)
     const [uploadStatus, setUploadStatus] = useState("Uploading...")
     const [uploadStep, setUploadStep] = useState(0) // 0: Uploading, 1: Virus Scan, 2: Malware Check, 3: Finalizing
@@ -117,22 +115,23 @@ export default function UploadAppPage() {
         try {
             if (!user) throw new Error("You must be logged in to upload");
 
-            // 0. Ensure Profile exists in Supabase to avoid Foreign Key errors
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', user.uid)
-                .single();
-
-            if (!profile) {
-                console.log("Profile missing in Supabase, creating basic record...");
-                await supabase.from('profiles').insert({
-                    id: user.uid,
-                    email: user.email,
-                    full_name: user.displayName || 'AppFlux User',
-                });
+            // 0. Ensure Profile exists in Supabase via Proxy
+            const profileRes = await fetch(`/api/user/profile?uid=${user.uid}`);
+            if (profileRes.ok) {
+                const profile = await profileRes.json();
+                if (!profile) {
+                    console.log("Profile missing in Supabase, creating basic record via proxy...");
+                    await fetch('/api/user/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: user.uid,
+                            email: user.email,
+                            full_name: user.displayName || 'AppFlux User',
+                        })
+                    });
+                }
             }
-
 
             // 1. Upload APK to GitHub Storage via Backend API (Raw Upload for 100MB)
             setUploadStatus(`Uploading APK to GitHub...`);
@@ -152,35 +151,54 @@ export default function UploadAppPage() {
 
             const apkUrl = githubData.downloadUrl;
 
-            // 2. Upload Icon (Optional)
+            // 2. Upload Icon (Optional) via Proxy
             setUploadStatus("Uploading icon...");
             let iconUrl = null;
             if (formData.iconFile) {
                 const iconFileName = `${user.uid}/${Date.now()}-icon-${formData.iconFile.name.replace(/\s+/g, '-')}`;
-                const { data: iconData, error: iconError } = await supabase.storage
-                    .from('app-assets')
-                    .upload(iconFileName, formData.iconFile);
 
-                if (iconError) throw iconError;
-                iconUrl = supabase.storage.from('app-assets').getPublicUrl(iconFileName).data.publicUrl;
+                const iconFormData = new FormData();
+                iconFormData.append('file', formData.iconFile);
+                iconFormData.append('path', iconFileName);
+                iconFormData.append('bucket', 'app-assets');
+
+                const uploadRes = await fetch('/api/storage/upload', {
+                    method: 'POST',
+                    body: iconFormData
+                });
+
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json();
+                    iconUrl = uploadData.url;
+                } else {
+                    const error = await uploadRes.json();
+                    throw new Error(error.error || "Icon upload failed");
+                }
             }
 
-            // 3. Upload Screenshots
+            // 3. Upload Screenshots via Proxy
             setUploadStatus("Uploading screenshots...");
             let screenshotUrls: string[] = [];
             if (formData.screenshotFiles.length > 0) {
                 for (const file of formData.screenshotFiles) {
                     const sFileName = `${user.uid}/${Date.now()}-screen-${file.name.replace(/\s+/g, '-')}`;
-                    const { data: sData, error: sError } = await supabase.storage
-                        .from('app-assets')
-                        .upload(sFileName, file);
 
-                    if (sError) {
-                        console.error("Screenshot upload error:", sError);
-                        continue;
+                    const sFormData = new FormData();
+                    sFormData.append('file', file);
+                    sFormData.append('path', sFileName);
+                    sFormData.append('bucket', 'app-assets');
+
+                    const sUploadRes = await fetch('/api/storage/upload', {
+                        method: 'POST',
+                        body: sFormData
+                    });
+
+                    if (sUploadRes.ok) {
+                        const sUploadData = await sUploadRes.json();
+                        screenshotUrls.push(sUploadData.url);
+                    } else {
+                        console.error("Screenshot upload failed via proxy");
                     }
-                    const url = supabase.storage.from('app-assets').getPublicUrl(sFileName).data.publicUrl;
-                    screenshotUrls.push(url);
                 }
             }
 
@@ -200,26 +218,33 @@ export default function UploadAppPage() {
             setUploadStatus("Finalizing Secure Deployment...");
             setUploadStep(4);
 
-            // 5. Save to Supabase
+            // 5. Save to Supabase via Proxy
             const apkSizeInBytes = formData.apkFile.size;
             const apkSizeFormatted = (apkSizeInBytes / (1024 * 1024)).toFixed(1) + " MB";
 
-            const { error: insertError } = await supabase.from("apps").insert({
-                name: formData.appName,
-                version: formData.version,
-                description: formData.description,
-                category: formData.category,
-                github_download_url: apkUrl,
-                icon_url: iconUrl,
-                screenshot_urls: screenshotUrls,
-                user_id: user.uid,
-                download_count: 0,
-                views: 0,
-                size: apkSizeInBytes,
-                size_formatted: apkSizeFormatted,
+            const createRes = await fetch('/api/apps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.appName,
+                    version: formData.version,
+                    description: formData.description,
+                    category: formData.category,
+                    github_download_url: apkUrl,
+                    icon_url: iconUrl,
+                    screenshot_urls: screenshotUrls,
+                    user_id: user.uid,
+                    download_count: 0,
+                    views: 0,
+                    size: apkSizeInBytes,
+                    size_formatted: apkSizeFormatted,
+                })
             });
 
-            if (insertError) throw insertError;
+            if (!createRes.ok) {
+                const errorData = await createRes.json();
+                throw new Error(errorData.error || "Failed to create app record");
+            }
 
             router.push("/store");
             router.refresh();

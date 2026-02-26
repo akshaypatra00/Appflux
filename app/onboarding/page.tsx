@@ -69,35 +69,37 @@ export default function OnboardingPage() {
         }
 
         const checkProfile = async () => {
-            // Check Supabase for profile
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.uid)
-                .single();
+            try {
+                // Fetch from our proxy API
+                const res = await fetch(`/api/user/profile?uid=${user.uid}`);
+                if (res.ok) {
+                    const profile = await res.json();
+                    if (profile) {
+                        if (profile.avatar_url) setAvatarUrl(profile.avatar_url)
 
-            if (profile) {
-                if (profile.avatar_url) setAvatarUrl(profile.avatar_url)
-                
-                setPrefilledData({
-                    firstName: profile.first_name || '',
-                    lastName: profile.last_name || '',
-                    username: profile.username || ''
-                })
+                        setPrefilledData({
+                            firstName: profile.first_name || '',
+                            lastName: profile.last_name || '',
+                            username: profile.username || ''
+                        })
 
-                // If profile is already very complete, skip onboarding
-                if (profile.username && (profile.user_position || profile.platform_usage)) {
-                    router.push('/store')
+                        // If profile is already very complete, skip onboarding
+                        if (profile.username && (profile.user_position || profile.platform_usage)) {
+                            router.push('/store')
+                        }
+                    } else {
+                        // Case: First time log in via social (no Supabase profile yet)
+                        const [firstName, ...lastNames] = (user.displayName || "").split(" ")
+                        setAvatarUrl(user.photoURL)
+                        setPrefilledData({
+                            firstName: firstName || "",
+                            lastName: lastNames.join(" ") || "",
+                            username: ""
+                        })
+                    }
                 }
-            } else {
-                // Case: First time log in via social (no Supabase profile yet)
-                const [firstName, ...lastNames] = (user.displayName || "").split(" ")
-                setAvatarUrl(user.photoURL)
-                setPrefilledData({
-                    firstName: firstName || "",
-                    lastName: lastNames.join(" ") || "",
-                    username: ""
-                })
+            } catch (err) {
+                console.error("Profile check error:", err);
             }
         }
         checkProfile()
@@ -131,11 +133,14 @@ export default function OnboardingPage() {
                 photoURL: publicUrl
             })
 
-            // Update profile in Supabase
-            await supabase.from('profiles').upsert({
-                id: user.uid,
-                avatar_url: publicUrl,
-                updated_at: new Date().toISOString()
+            // Update profile in Supabase via proxy
+            await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: user.uid,
+                    avatar_url: publicUrl
+                })
             });
 
             toast.success("Avatar uploaded!")
@@ -168,12 +173,11 @@ export default function OnboardingPage() {
             // If username is empty, we check if it already exists in the profile
             let finalUsername = username;
             if (!finalUsername) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('username')
-                    .eq('id', user.uid)
-                    .single();
-                finalUsername = profile?.username;
+                const res = await fetch(`/api/user/profile?uid=${user.uid}`);
+                if (res.ok) {
+                    const profile = await res.json();
+                    finalUsername = profile?.username;
+                }
             }
 
             if (!finalUsername) {
@@ -183,36 +187,27 @@ export default function OnboardingPage() {
                 return;
             }
 
-            // Check username availability in Supabase
-            const { data: existingUser } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', finalUsername)
-                .neq('id', user.uid)
-                .maybeSingle();
-
-            if (existingUser) {
-                toast.error("Username is already taken")
-                setStep(1) // Go back to step 1
-                setIsLoading(false)
-                return
-            }
-
-            // Update profile in Supabase
-            const { error: updateError } = await supabase.from('profiles').upsert({
-                id: user.uid,
-                username: finalUsername,
-                first_name: firstName || "",
-                last_name: lastName || "",
-                full_name: `${firstName} ${lastName}`.trim() || "",
-                user_position: position || "",
-                platform_usage: usage || "",
-                referral_source: referral || "",
-                updated_at: new Date().toISOString(),
-                email: user.email || ""
+            // Update profile in Supabase via Proxy
+            const updateRes = await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: user.uid,
+                    username: finalUsername,
+                    first_name: firstName || "",
+                    last_name: lastName || "",
+                    full_name: `${firstName} ${lastName}`.trim() || "",
+                    user_position: position || "",
+                    platform_usage: usage || "",
+                    referral_source: referral || "",
+                    email: user.email || ""
+                })
             });
 
-            if (updateError) throw updateError;
+            if (!updateRes.ok) {
+                const errorData = await updateRes.json();
+                throw new Error(errorData.error || "Failed to update profile");
+            }
 
             // Sync with Firebase Auth metadata
             const { updateProfile } = await import('firebase/auth')

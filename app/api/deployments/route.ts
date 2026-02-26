@@ -4,17 +4,22 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { id, ...appData } = body
+        const { app_id, user_id, status } = body
 
-        if (!appData.user_id) {
-            return NextResponse.json({ error: "Missing User ID" }, { status: 400 })
+        if (!app_id || !user_id) {
+            return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
 
         const supabase = await createClient()
 
         const { data, error } = await supabase
-            .from("apps")
-            .insert(appData)
+            .from("deployments")
+            .insert({
+                app_id,
+                user_id,
+                status: status || 'success',
+                deployed_at: new Date().toISOString()
+            })
             .select()
             .single()
 
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
         return NextResponse.json(data)
 
     } catch (err: any) {
-        console.error("App creation API error:", err)
+        console.error("Deployment creation API error:", err)
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }

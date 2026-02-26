@@ -34,8 +34,6 @@ interface NotificationPanelProps {
 export function NotificationPanel({ isOpen, onClose, userId }: NotificationPanelProps) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const supabase = createClient()
-
     useEffect(() => {
         if (isOpen && userId) {
             fetchNotifications()
@@ -44,50 +42,60 @@ export function NotificationPanel({ isOpen, onClose, userId }: NotificationPanel
 
     const fetchNotifications = async () => {
         setIsLoading(true)
-        const { data, error } = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(20)
-
-        if (data) setNotifications(data)
+        try {
+            const res = await fetch(`/api/notifications?uid=${userId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setNotifications(data)
+            }
+        } catch (err) {
+            console.error("Failed to fetch notifications:", err)
+        }
         setIsLoading(false)
     }
 
     const markAsRead = async (id: string) => {
-        const { error } = await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('id', id)
-
-        if (!error) {
-            setNotifications(prev =>
-                prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-            )
+        try {
+            const res = await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, uid: userId })
+            })
+            if (res.ok) {
+                setNotifications(prev =>
+                    prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+                )
+            }
+        } catch (err) {
+            console.error("Failed to mark notification as read:", err)
         }
     }
 
     const markAllRead = async () => {
-        const { error } = await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('user_id', userId)
-            .eq('is_read', false)
-
-        if (!error) {
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+        try {
+            const res = await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: userId, all: true })
+            })
+            if (res.ok) {
+                setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+            }
+        } catch (err) {
+            console.error("Failed to mark all notifications as read:", err)
         }
     }
 
     const deleteNotification = async (id: string) => {
-        const { error } = await supabase
-            .from('notifications')
-            .delete()
-            .eq('id', id)
-
-        if (!error) {
-            setNotifications(prev => prev.filter(n => n.id !== id))
+        try {
+            const res = await fetch(`/api/notifications?id=${id}`, {
+                method: 'DELETE'
+            })
+            if (res.ok) {
+                setNotifications(prev => prev.filter(n => n.id !== id))
+            }
+        } catch (err) {
+            console.error("Failed to delete notification:", err)
         }
     }
 

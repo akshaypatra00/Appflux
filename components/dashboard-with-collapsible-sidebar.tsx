@@ -40,44 +40,23 @@ interface DashboardContentProps {
 export default function DashboardContent({ user, profile, stats, recentActivity, dailyActivity, topApps, deployments }: DashboardContentProps) {
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
-  const supabase = createClient();
-
   React.useEffect(() => {
     if (user) {
       fetchUnreadCount();
 
-      // Real-time subscription for new notifications
-      const channel = supabase
-        .channel('notifications_changes')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.uid}`
-        }, () => {
-          fetchUnreadCount();
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Periodic fetch instead of Realtime (which is blocked by ISP)
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
     }
   }, [user]);
 
   const fetchUnreadCount = async () => {
     try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.uid)
-        .eq('is_read', false);
-
-      if (error) {
-        // Table might not exist yet
-        return;
+      const res = await fetch(`/api/notifications/unread-count?uid=${user.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.count || 0);
       }
-      setUnreadCount(count || 0);
     } catch (e) {
       console.log('Notifications not available yet');
     }
@@ -194,12 +173,10 @@ export default function DashboardContent({ user, profile, stats, recentActivity,
                               deploy.status === 'building' ? 'bg-blue-500/10 text-blue-500 animate-pulse' :
                                 'bg-yellow-500/10 text-yellow-500'}`}>
                         {appIcon ? (
-                          <Image
-                            src={appIcon}
+                          <img
+                            src={appIcon.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(appIcon)}` : appIcon}
                             alt={appName}
-                            fill
-                            className="object-cover"
-                            unoptimized
+                            className="w-full h-full object-cover"
                           />
                         ) : (
                           deploy.status === 'success' ? <CheckCircle className="h-5 w-5" /> :
@@ -291,12 +268,10 @@ export default function DashboardContent({ user, profile, stats, recentActivity,
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="h-8 w-8 min-w-8 rounded bg-neutral-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold text-neutral-500 overflow-hidden relative">
                         {app.icon_url ? (
-                          <Image
-                            src={app.icon_url}
+                          <img
+                            src={app.icon_url.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(app.icon_url)}` : app.icon_url}
                             alt={app.name}
-                            fill
-                            className="object-cover"
-                            unoptimized
+                            className="w-full h-full object-cover"
                           />
                         ) : (
                           i + 1

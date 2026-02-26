@@ -49,14 +49,12 @@ export function StoreSidebar() {
                 if (initialAvatar) setUserAvatar(initialAvatar)
 
                 try {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('avatar_url')
-                        .eq('id', userAuth.uid)
-                        .single()
-
-                    if (profile?.avatar_url) {
-                        setUserAvatar(profile.avatar_url)
+                    const res = await fetch(`/api/user/profile?uid=${userAuth.uid}`);
+                    if (res.ok) {
+                        const profile = await res.json();
+                        if (profile?.avatar_url) {
+                            setUserAvatar(profile.avatar_url);
+                        }
                     }
                 } catch (err) {
                     console.error("Sidebar profile fetch error:", err);
@@ -104,7 +102,11 @@ export function StoreSidebar() {
                     <Link href="/profile" className="mb-8 p-1 rounded-full transition-colors cursor-pointer ring-2 ring-black/10 dark:ring-white/10 hover:ring-black/20 dark:hover:ring-white/20">
                         {userAvatar ? (
                             <div className="relative w-10 h-10 rounded-full overflow-hidden">
-                                <Image src={userAvatar} alt="User" fill className="object-cover" unoptimized />
+                                <img
+                                    src={userAvatar.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(userAvatar)}` : userAvatar}
+                                    alt="User"
+                                    className="w-full h-full object-cover"
+                                />
                             </div>
                         ) : (
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">

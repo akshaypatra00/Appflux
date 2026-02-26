@@ -20,18 +20,19 @@ export function StoreCard({ title, category, icon, iconUrl, color = "bg-white", 
         <div className="group relative bg-white dark:bg-white/5 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-2xl p-6 hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-violet-500/10 cursor-pointer flex flex-col items-center text-center">
 
             {/* App Icon */}
-            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-black/5 dark:border-white/5`}>
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-black/5 dark:border-white/5">
                 {iconUrl && !imageError ? (
-                    <Image
-                        src={iconUrl}
+                    <img
+                        src={iconUrl.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(iconUrl)}` : iconUrl}
                         alt={title}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                        onError={() => setImageError(true)}
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                            console.error(`Failed to load icon for ${title}:`, iconUrl);
+                            setImageError(true);
+                        }}
                     />
                 ) : (
-                    <div className="text-zinc-500 dark:text-zinc-400">
+                    <div className="flex items-center justify-center w-full h-full text-zinc-900 dark:text-zinc-100 bg-zinc-200 dark:bg-zinc-700">
                         {icon}
                     </div>
                 )}

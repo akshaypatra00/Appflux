@@ -15,12 +15,10 @@ export function SmartIcon({ src, name, className = "" }: SmartIconProps) {
 
     if (src && !error) {
         return (
-            <Image
-                src={src}
+            <img
+                src={src.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(src)}` : src}
                 alt={name}
-                fill
-                className={`object-cover ${className}`}
-                unoptimized
+                className={`w-full h-full object-cover ${className}`}
                 onError={() => setError(true)}
             />
         );

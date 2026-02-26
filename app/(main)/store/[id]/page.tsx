@@ -108,12 +108,10 @@ export default async function AppDetailPage({ params, searchParams }: { params: 
                                 <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
                                     {screenshots.map((url: string, i: number) => (
                                         <div key={i} className="flex-none w-64 aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 snap-center relative">
-                                            <Image
-                                                src={url}
+                                            <img
+                                                src={url.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url}
                                                 alt={`Screenshot ${i + 1}`}
-                                                fill
-                                                className="object-cover"
-                                                unoptimized
+                                                className="w-full h-full object-cover"
                                             />
                                         </div>
                                     ))}

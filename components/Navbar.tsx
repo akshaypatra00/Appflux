@@ -23,15 +23,16 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                 const metadataAvatar = initialUser.photoURL || getUserAvatar(initialUser)
                 if (metadataAvatar) setUserAvatar(metadataAvatar)
 
-                // Then fetch from profiles table to get the latest custom upload
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('avatar_url')
-                    .eq('id', initialUser.uid)
-                    .single()
-
-                if (profile?.avatar_url) {
-                    setUserAvatar(profile.avatar_url)
+                try {
+                    const res = await fetch(`/api/user/profile?uid=${initialUser.uid}`);
+                    if (res.ok) {
+                        const profile = await res.json();
+                        if (profile?.avatar_url) {
+                            setUserAvatar(profile.avatar_url);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Navbar profile fetch error:", err);
                 }
             }
         }
@@ -62,7 +63,11 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                     <Link href="/profile" className="ml-1 pl-1 pr-1 py-1 rounded-full hover:bg-white/10 transition">
                         <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20">
                             {userAvatar ? (
-                                <Image src={userAvatar} alt="User" fill className="object-cover" unoptimized={userAvatar.includes('supabase.co')} />
+                                <img
+                                    src={userAvatar.includes('supabase.co') ? `/api/proxy-image?url=${encodeURIComponent(userAvatar)}` : userAvatar}
+                                    alt="User"
+                                    className="w-full h-full object-cover"
+                                />
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
                                     <span className="font-bold text-white text-[10px]">AF</span>

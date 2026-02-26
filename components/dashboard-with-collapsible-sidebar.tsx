@@ -34,9 +34,10 @@ interface DashboardContentProps {
   dailyActivity?: { label: string; value: number; displayValue?: number; highlight?: boolean }[];
   topApps?: any[];
   deployments?: any[];
+  profile?: any;
 }
 
-export default function DashboardContent({ user, stats, recentActivity, dailyActivity, topApps, deployments }: DashboardContentProps) {
+export default function DashboardContent({ user, profile, stats, recentActivity, dailyActivity, topApps, deployments }: DashboardContentProps) {
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const supabase = createClient();
@@ -52,7 +53,7 @@ export default function DashboardContent({ user, stats, recentActivity, dailyAct
           event: '*',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user.uid}`
         }, () => {
           fetchUnreadCount();
         })
@@ -65,13 +66,21 @@ export default function DashboardContent({ user, stats, recentActivity, dailyAct
   }, [user]);
 
   const fetchUnreadCount = async () => {
-    const { count } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false);
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.uid)
+        .eq('is_read', false);
 
-    setUnreadCount(count || 0);
+      if (error) {
+        // Table might not exist yet
+        return;
+      }
+      setUnreadCount(count || 0);
+    } catch (e) {
+      console.log('Notifications not available yet');
+    }
   };
 
   return (
@@ -79,13 +88,15 @@ export default function DashboardContent({ user, stats, recentActivity, dailyAct
       <NotificationPanel
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
-        userId={user?.id}
+        userId={user?.uid}
       />
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mt-1">Welcome back to your dashboard</p>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+            Welcome back, {profile?.full_name || user?.displayName || 'Adventurer'}
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -263,6 +274,10 @@ export default function DashboardContent({ user, stats, recentActivity, dailyAct
               { label: "Mon", value: 0 },
               { label: "Tue", value: 0 },
               { label: "Wed", value: 0 },
+              { label: "Thu", value: 0 },
+              { label: "Fri", value: 0 },
+              { label: "Sat", value: 0 },
+              { label: "Sun", value: 0 },
             ]}
             className="w-full rounded-xl border-neutral-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm"
           />

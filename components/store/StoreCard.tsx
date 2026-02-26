@@ -1,4 +1,6 @@
+"use client"
 
+import { useState } from "react"
 import { Download, MoreHorizontal, Share2 } from "lucide-react"
 import Image from "next/image"
 
@@ -12,13 +14,22 @@ interface StoreCardProps {
 }
 
 export function StoreCard({ title, category, icon, iconUrl, color = "bg-white", downloadUrl }: StoreCardProps) {
+    const [imageError, setImageError] = useState(false);
+
     return (
         <div className="group relative bg-white dark:bg-white/5 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-2xl p-6 hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-violet-500/10 cursor-pointer flex flex-col items-center text-center">
 
             {/* App Icon */}
             <div className={`w-20 h-20 rounded-2xl ${color} flex items-center justify-center mb-6 shadow-lg relative overflow-hidden bg-black/5 dark:bg-white/5`}>
-                {iconUrl ? (
-                    <Image src={iconUrl} alt={title} fill className="object-cover" unoptimized />
+                {iconUrl && !imageError ? (
+                    <Image
+                        src={iconUrl}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        onError={() => setImageError(true)}
+                    />
                 ) : (
                     icon
                 )}

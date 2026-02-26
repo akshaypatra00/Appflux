@@ -52,7 +52,7 @@ export const AnalyticsCard = ({
       </div>
 
       {/* --- ANIMATED BAR CHART --- */}
-      <div className="grid grid-cols-3 gap-4" aria-label="Weekly analytics chart">
+      <div className="grid grid-cols-7 gap-2" aria-label="Weekly analytics chart">
         {data.map((item, index) => (
           <div key={index} className="flex flex-col items-center gap-2">
             {/* Bar container with striped background */}

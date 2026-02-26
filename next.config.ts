@@ -25,11 +25,20 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: '*.firebasestorage.app',
+      },
+      {
+        protocol: 'https',
         hostname: 'images.unsplash.com',
       },
     ],
   },
-  /* config options here */
+  // Increase file upload limit for APKs
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
+  },
 };
 
 export default nextConfig;

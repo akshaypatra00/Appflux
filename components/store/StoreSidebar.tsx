@@ -21,6 +21,8 @@ import { LogoutModal } from "@/components/LogoutModal"
 import { getUserAvatar } from "@/lib/avatar"
 import { Button } from "@/components/ui/button"
 
+import { useAuth } from "@/components/auth-provider"
+
 const sidebarItems = [
     { icon: Home, label: "Home", href: "/" },
     { icon: LayoutGrid, label: "Apps", href: "/store" },
@@ -34,32 +36,37 @@ export function StoreSidebar() {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
-    const [userAuth, setUserAuth] = useState<any>(null)
+    const { user: userAuth, loading: authLoading } = useAuth()
+
     useEffect(() => {
         setMounted(true)
         const supabase = createClient()
 
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            setUserAuth(user)
+        const getProfile = async () => {
+            if (userAuth) {
+                // Set initial avatar from Firebase
+                const initialAvatar = userAuth.photoURL || getUserAvatar(userAuth)
+                if (initialAvatar) setUserAvatar(initialAvatar)
 
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('avatar_url')
-                    .eq('id', user.id)
-                    .single()
+                try {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('avatar_url')
+                        .eq('id', userAuth.uid)
+                        .single()
 
-                if (profile?.avatar_url) {
-                    setUserAvatar(profile.avatar_url)
-                } else {
-                    const avatar = getUserAvatar(user)
-                    if (avatar) setUserAvatar(avatar)
+                    if (profile?.avatar_url) {
+                        setUserAvatar(profile.avatar_url)
+                    }
+                } catch (err) {
+                    console.error("Sidebar profile fetch error:", err);
                 }
             }
         }
-        getUser()
-    }, [])
+        if (!authLoading) {
+            getProfile()
+        }
+    }, [userAuth, authLoading])
 
     const toggleTheme = () => {
         setTheme(theme === "dark" ? "light" : "dark")
@@ -81,8 +88,9 @@ export function StoreSidebar() {
     }
 
     const confirmLogout = async () => {
-        const supabase = createClient()
-        await supabase.auth.signOut()
+        const { signOut: firebaseSignOut } = await import('firebase/auth')
+        const { auth } = await import('@/lib/firebase')
+        await firebaseSignOut(auth)
         window.location.href = '/'
     }
 

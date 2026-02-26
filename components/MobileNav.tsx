@@ -18,7 +18,9 @@ export function MobileNav({ user }: MobileNavProps) {
     const toggleMenu = () => setIsOpen(!isOpen)
 
     const handleSignOut = async () => {
-        await supabase.auth.signOut()
+        const { signOut: firebaseSignOut } = await import('firebase/auth')
+        const { auth } = await import('@/lib/firebase')
+        await firebaseSignOut(auth)
         setIsOpen(false)
         window.location.reload()
     }

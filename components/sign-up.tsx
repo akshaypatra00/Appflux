@@ -1,17 +1,18 @@
 "use client";
 import React, { useState } from 'react';
 import Image from "next/image";
-import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import { auth } from '@/lib/firebase';
 import {
     createUserWithEmailAndPassword,
     updateProfile,
     signInWithPopup,
     GoogleAuthProvider,
-    GithubAuthProvider
+    GithubAuthProvider,
+    sendEmailVerification
 } from 'firebase/auth';
 
 // --- HELPER COMPONENTS (ICONS) ---
@@ -60,7 +61,6 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
     const [isVerificationSent, setIsVerificationSent] = useState(false);
     const [userEmail, setUserEmail] = useState('');
     const router = useRouter();
-    const supabase = createClient();
 
     const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -94,25 +94,33 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             });
 
             console.log("Firebase Auth success, creating Supabase profile...");
+            const supabase = createClient();
 
-            // 3. Create profile in Supabase DB (using Firebase UID as the ID)
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.uid, // Use Firebase UID
-                    email,
-                    first_name: firstName,
-                    last_name: lastName,
-                    username: username,
-                    full_name: `${firstName} ${lastName}`.trim(),
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'id' });
+            // 3. Create profile in Supabase
+            const { error: profileError } = await supabase.from('profiles').insert({
+                id: user.uid,
+                email,
+                first_name: firstName,
+                last_name: lastName,
+                username: username,
+                full_name: `${firstName} ${lastName}`.trim(),
+            });
 
             if (profileError) {
-                console.warn("Supabase profile sync error:", profileError.message);
+                console.error("Supabase profile error:", profileError);
+                // Even if profile fails, user is created in Firebase. 
             }
 
-            router.push('/onboarding');
+            // 4. Send Verification Email with redirect to onboarding
+            const actionCodeSettings = {
+                url: `${window.location.origin}/onboarding`,
+                handleCodeInApp: true,
+            };
+            await sendEmailVerification(user, actionCodeSettings);
+            
+            setUserEmail(email);
+            setIsVerificationSent(true);
+            // router.push('/onboarding'); // Don't redirect yet, let them see the verification msg
         } catch (e: any) {
             console.error("Firebase sign up error:", e);
             setError(e.message || "An unexpected error occurred during sign up");
@@ -125,7 +133,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         setIsLoading(true);
         const provider = new GoogleAuthProvider();
         try {
-            const result = await signInWithPopup(auth, provider);
+            await signInWithPopup(auth, provider);
             router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);
@@ -137,7 +145,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         setIsLoading(true);
         const provider = new GithubAuthProvider();
         try {
-            const result = await signInWithPopup(auth, provider);
+            await signInWithPopup(auth, provider);
             router.push('/onboarding');
         } catch (e: any) {
             setError(e.message);

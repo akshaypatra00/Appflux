@@ -4,22 +4,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Auth check removed to support Firebase Auth users
 
     try {
         const body = await req.json();
-        const { repoName, owner } = body;
+        const { repoName, owner, githubToken } = body;
 
-        // Need user's GitHub token to access private repos
-        const { data: { session } } = await supabase.auth.getSession();
-        const providerToken = session?.provider_token;
+        // Use provided token or fallback to Supabase session (though Supabase is likely down)
+        let providerToken = githubToken;
 
         if (!providerToken) {
-            return NextResponse.json({ error: 'GitHub token not found. Please re-authenticate with GitHub.' }, { status: 401 });
+            const { data: { session } } = await supabase.auth.getSession();
+            providerToken = session?.provider_token;
+        }
+
+        if (!providerToken) {
+            return NextResponse.json({ error: 'GitHub token not found. Please provide a token or re-authenticate.' }, { status: 401 });
         }
 
         const octokitKey = new Octokit({ auth: providerToken });

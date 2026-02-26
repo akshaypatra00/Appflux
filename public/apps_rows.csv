@@ -1,0 +1,92 @@
+id,name,version,description,download_count,github_release_id,github_download_url,created_at,icon_url,screenshot_url,category,screenshot_urls,user_id,views
+4954a7d3-0cd0-4a4c-903e-cd091abf9751,Famity,1.0.0,"Famity is a secure, family-only space where memories live forever.
+
+Photos, voice notes, videos, and stories often get scattered across phones and chats.
+Famity brings them together — private, organized, and meaningful.
+✨ Features
+👨‍👩‍👧‍👦 Private family groups
+🎙 Voice memory recording
+🖼 Photos & videos archive
+🔐 Secure authentication
+☁ Cloud storage
+🌙 Modern UI with dark mode
+📱 Smooth Flutter experience",3,286354034,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v1.0.0/famity-1.0.0-1771064902056.apk,2026-02-14 10:30:35.117334+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771064902056-icon.jpg,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771064902056-homepage.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771064902056-IMG-20260101-WA0003.jpg"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771064902056-splash-screen.png""]",,7
+6977304c-4f66-4231-a224-1d3053c274b9,Bookland,1.0.0,"Bookland is an android app where you can track all of your book readings.
+With Bookland, you can search for the book by its title, author, or ISBN. There are 3 categories within the app, the book you want to read, reading, or finished reading.
+
+Features:
+- Browse across the large library of books thanks to Google Books APIs
+- Keep track of all the books you read
+- Light/Dark theme support
+",0,286354034,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v1.0.0/bookland-1.0.0-1771355135619.apk,2026-02-17 19:06:06.978613+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771355135619-icon_IZGPs78nWv1WO6aBvaO9n9Non-TBX48u8LDg61vnBPM=.jpg,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355135619-Screenshot-2026-02-18-003357.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355135619-Screenshot-2026-02-18-003352.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355135619-Screenshot-2026-02-18-003347.png""]",b41103fd-d066-4935-b661-09aad4813f88,1
+7b8936f5-9607-493b-acb6-de7ec668988b,medicine analyzer,v1.0.0,"mobile application designed to help people understand medicines and health conditions in a clear, structured, and responsible way.
+
+This app focuses on trust, simplicity, and safety, combining modern UI design with AI-powered analysis to make medical information easier to understand — without replacing professional medical advice.",1,,https://github.com/akshaypatra00/medicine-analyzer-flutter/releases/download/v1.0.0/medicine.analyser.apk,2026-02-17 18:16:11.410826+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/b41103fd-d066-4935-b661-09aad4813f88/1771352162088-icon-logo.png,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/b41103fd-d066-4935-b661-09aad4813f88/1771352164164-screen-Screenshot-2026-01-28-224758.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/b41103fd-d066-4935-b661-09aad4813f88/1771352166071-screen-Screenshot-2026-01-28-221526.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/b41103fd-d066-4935-b661-09aad4813f88/1771352168704-screen-Screenshot-2026-01-28-221504.png""]",b41103fd-d066-4935-b661-09aad4813f88,10
+9509ea51-3edf-43cb-97da-e1e04371f000,Bhagavad Gita,3.4,"This Android app provides the chapter and verse of the Bhagavad Gita. It is for anyone who is interested in learning about this amazing ancient text.
+
+Features:
+- Provides the chapter and verse (with translation) of the Bhagavad Gita
+- Audio support for verses
+- Commentary support for verses (Hindi & English)
+- Hanuman Chalisa
+- Language available - Hindi, English
+- Offline support",0,287382345,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v3.4/bhagavad-gita-3.4-1771354934606.apk,2026-02-17 19:02:35.230855+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771354934606-logo-of-bhagbat.png,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771354934606-Screenshot-2026-02-18-002925.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771354934606-Screenshot-2026-02-18-002932.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771354934606-Screenshot-2026-02-18-002940.png""]",b41103fd-d066-4935-b661-09aad4813f88,3
+bab9e4c4-3f38-4c94-9a25-abb1c3c1c5a7,AlwaysOn | AOD,3.10.3,"Android app which adds an always on display. Free, no ads and open source.
+AlwaysOn is an app for every device with an AMOLED or OLED display.
+It adds an always-on display with various customization options regarding the watch face, the behavior, and the background.
+Take a look at your phone and have everything you need in one place: the time, the date, the battery state, your notifications, and more.
+
+
+Features
+- Always on display
+- Multiple watch faces
+- View your notifications
+- View what you are listening to
+- Edge glow
+- Rules
+- Double tap to wake
+- Pocket mode
+- Do not disturb mode
+- Adjustable brightness
+- Quick tiles
+- Widgets
+- Power saver mode [for root]
+- Moves content to prevent burn-ins
+- Minimal permissions",0,287389068,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v3.10.3/alwayson-.-aod-3.10.3-1771356358434.apk,2026-02-17 19:26:09.168483+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771356358434-icon_aCpq67_kJ5FJ79mOm4jcJxDG5mf6z2AERM7eXVjzVPg=.png,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356358434-Screenshot-2026-02-18-005402.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356358434-Screenshot-2026-02-18-005356.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356358434-Screenshot-2026-02-18-005351.png""]",b41103fd-d066-4935-b661-09aad4813f88,4
+be0bc343-d7e0-4cee-ada4-660001bb3707,Harmony Music,1.12.2,"An Android App for streaming Music
+
+- Ability to play song from Ytube/Ytube Music.
+- Song cache while playing
+- Radio feature support
+- Background music
+- Playlist creation & bookmark support
+- Artist & Album bookmark support
+- Import song,Playlist,Album,Artist via sharing from Ytube/Ytube Music.
+- Streaming quality control
+- Song downloading support
+- Language support
+- Skip silence
+- Dynamic Theme
+- Flexibility to switch between Bottom & Side Nav bar
+- Equalizer support
+- Synced & Plain Lyrics support
+- Sleep Timer
+- Android Auto support
+- No Advertisment
+- No Login required
+- Piped playlist integration",0,287385837,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v1.12.2/harmony-music-1.12.2-1771355644835.apk,2026-02-17 19:14:56.014333+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771355644835-harmoni.png,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355644835-Screenshot-2026-02-18-003653.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355644835-Screenshot-2026-02-18-003646.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355644835-Screenshot-2026-02-18-003639.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771355644835-Screenshot-2026-02-18-003633.png""]",b41103fd-d066-4935-b661-09aad4813f88,1
+be2eb6cc-6a5b-43a9-a2cf-81df8b34ca11,LabNex for GitLab,7.0.0,"Android app for GitLab
+🎉 Features 🎉
+- Revamped dashboard UI
+- Render markdown in issue and PR titles
+- File icons in the file browser
+- To-do list
+- Mark to-do list items as done
+- Custom URL scheme: labnex:// (more in README.md)
+- Deep links with custom URLs for issues, merge requests, and projects
+- Subgroup listing (nested)
+- Projects for subgroups
+- Self-signed certificate support (more in FAQ)
+- Scoped label support for groups and projects
+
+",0,287388027,https://github.com/akshaypatra99/appflux-app-storage/releases/download/v7.0.0/labnex-for-gitlab-7.0.0-1771356110867.apk,2026-02-17 19:22:15.624826+00,https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/icons/1771356110867-icon_qwVP-JgIQn-pF42-5cYGLV709rWjhZWvBWDsvsp6OG0=.png,,android,"[""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356110867-Screenshot-2026-02-18-004542.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356110867-Screenshot-2026-02-18-004535.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356110867-Screenshot-2026-02-18-004528.png"",""https://twwmowovyrhdnzskppcq.supabase.co/storage/v1/object/public/app-assets/screenshots/1771356110867-Screenshot-2026-02-18-004521.png""]",b41103fd-d066-4935-b661-09aad4813f88,1

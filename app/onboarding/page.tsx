@@ -19,10 +19,11 @@ const positions = [
 ]
 
 const usageReasons = [
-    "To publish my own apps",
-    "To download and try new apps",
-    "To manage deployments for my team",
-    "Just exploring the platform"
+    "Personal Projects",
+    "Professional Work",
+    "Learning & Exploration",
+    "Team Collaboration",
+    "Store Browsing"
 ]
 
 const referralSources = [
@@ -47,6 +48,11 @@ export default function OnboardingPage() {
     const [step, setStep] = useState(1)
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+    const [prefilledData, setPrefilledData] = useState({
+        firstName: '',
+        lastName: '',
+        username: ''
+    })
     const fileInputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
     const { user, loading: authLoading } = useAuth()
@@ -61,24 +67,39 @@ export default function OnboardingPage() {
         }
 
         const checkProfile = async () => {
-            // Sync email if profile exists
-            const { data: profile } = await supabase
+            // Check Supabase for profile
+            const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', user.uid)
-                .single()
+                .single();
 
             if (profile) {
                 if (profile.avatar_url) setAvatarUrl(profile.avatar_url)
+                
+                setPrefilledData({
+                    firstName: profile.first_name || '',
+                    lastName: profile.last_name || '',
+                    username: profile.username || ''
+                })
 
                 // If profile is already very complete, skip onboarding
-                if (profile.username && profile.user_position && profile.platform_usage) {
+                if (profile.username && (profile.user_position || profile.platform_usage)) {
                     router.push('/store')
                 }
+            } else {
+                // Case: First time log in via social (no Supabase profile yet)
+                const [firstName, ...lastNames] = (user.displayName || "").split(" ")
+                setAvatarUrl(user.photoURL)
+                setPrefilledData({
+                    firstName: firstName || "",
+                    lastName: lastNames.join(" ") || "",
+                    username: ""
+                })
             }
         }
         checkProfile()
-    }, [user, authLoading, router, supabase])
+    }, [user, authLoading, router])
 
     const handleAvatarClick = () => {
         fileInputRef.current?.click()
@@ -90,19 +111,15 @@ export default function OnboardingPage() {
 
         setIsUploadingAvatar(true)
         try {
+            const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage')
+            const { storage } = await import('@/lib/firebase')
+
             const fileExt = file.name.split('.').pop()
-            const fileName = `${user.uid}-${Math.random()}.${fileExt}`
-            const filePath = `profiles/${fileName}`
+            const fileName = `profiles/${user.uid}/${Date.now()}.${fileExt}`
+            const storageRef = ref(storage, fileName)
 
-            const { error: uploadError } = await supabase.storage
-                .from('app-assets')
-                .upload(filePath, file)
-
-            if (uploadError) throw uploadError
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('app-assets')
-                .getPublicUrl(filePath)
+            await uploadBytes(storageRef, file)
+            const publicUrl = await getDownloadURL(storageRef)
 
             setAvatarUrl(publicUrl)
 
@@ -112,14 +129,12 @@ export default function OnboardingPage() {
                 photoURL: publicUrl
             })
 
-            // Update profile immediately for avatar
-            await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.uid,
-                    avatar_url: publicUrl,
-                    updated_at: new Date().toISOString()
-                })
+            // Update profile in Supabase
+            await supabase.from('profiles').upsert({
+                id: user.uid,
+                avatar_url: publicUrl,
+                updated_at: new Date().toISOString()
+            });
 
             toast.success("Avatar uploaded!")
         } catch (error: any) {
@@ -148,13 +163,31 @@ export default function OnboardingPage() {
         try {
             if (!user) return
 
-            // Check username availability
+            // If username is empty, we check if it already exists in the profile
+            let finalUsername = username;
+            if (!finalUsername) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', user.uid)
+                    .single();
+                finalUsername = profile?.username;
+            }
+
+            if (!finalUsername) {
+                toast.error("Username is required");
+                setStep(1);
+                setIsLoading(false);
+                return;
+            }
+
+            // Check username availability in Supabase
             const { data: existingUser } = await supabase
                 .from('profiles')
-                .select('username')
-                .eq('username', username)
+                .select('id')
+                .eq('username', finalUsername)
                 .neq('id', user.uid)
-                .single()
+                .maybeSingle();
 
             if (existingUser) {
                 toast.error("Username is already taken")
@@ -163,22 +196,21 @@ export default function OnboardingPage() {
                 return
             }
 
-            const { error } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.uid,
-                    username,
-                    first_name: firstName,
-                    last_name: lastName,
-                    full_name: `${firstName} ${lastName}`.trim(),
-                    user_position: position,
-                    platform_usage: usage,
-                    referral_source: referral,
-                    updated_at: new Date().toISOString(),
-                    email: user.email
-                })
+            // Update profile in Supabase
+            const { error: updateError } = await supabase.from('profiles').upsert({
+                id: user.uid,
+                username: finalUsername,
+                first_name: firstName || "",
+                last_name: lastName || "",
+                full_name: `${firstName} ${lastName}`.trim() || "",
+                user_position: position || "",
+                platform_usage: usage || "",
+                referral_source: referral || "",
+                updated_at: new Date().toISOString(),
+                email: user.email || ""
+            });
 
-            if (error) throw error
+            if (updateError) throw updateError;
 
             // Sync with Firebase Auth metadata
             const { updateProfile } = await import('firebase/auth')
@@ -189,6 +221,7 @@ export default function OnboardingPage() {
             toast.success("Welcome aboard!")
             router.push('/store')
         } catch (error: any) {
+            console.error("Onboarding error:", error);
             toast.error(error.message)
         } finally {
             setIsLoading(false)
@@ -228,22 +261,27 @@ export default function OnboardingPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-8 min-h-[400px]">
                     {step === 1 && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                        <div key={prefilledData.username || 'initial'} className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
                             <div className="flex flex-col items-center gap-4">
                                 <div
                                     onClick={handleAvatarClick}
-                                    className="group relative w-28 h-28 rounded-3xl overflow-hidden cursor-pointer bg-white/5 border-2 border-dashed border-white/20 hover:border-violet-500/50 transition-all flex items-center justify-center"
+                                    className="group relative w-32 h-32 rounded-[2rem] overflow-hidden cursor-pointer bg-white/5 border-2 border-dashed border-violet-500/30 hover:border-violet-500 transition-all flex items-center justify-center shadow-2xl shadow-violet-500/10"
                                 >
                                     {avatarUrl ? (
                                         <Image src={avatarUrl} alt="Avatar" fill className="object-cover group-hover:opacity-50 transition-opacity" unoptimized />
                                     ) : (
-                                        <User className="w-10 h-10 text-white/20 group-hover:text-violet-500 transition-colors" />
+                                        <div className="flex flex-col items-center gap-2">
+                                            <User className="w-10 h-10 text-white/20 group-hover:text-violet-500 transition-colors" />
+                                        </div>
                                     )}
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                                         {isUploadingAvatar ? (
                                             <Loader2 className="w-6 h-6 animate-spin text-white" />
                                         ) : (
-                                            <Camera className="w-6 h-6 text-white" />
+                                            <>
+                                                <Camera className="w-6 h-6 text-white mb-1" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-white">Change</span>
+                                            </>
                                         )}
                                     </div>
                                     <input
@@ -254,20 +292,35 @@ export default function OnboardingPage() {
                                         accept="image/*"
                                     />
                                 </div>
-                                <p className="text-sm text-neutral-500">Choose a profile picture</p>
+                                <div className="text-center">
+                                    <p className="text-sm font-medium text-white mb-1">Upload Photo</p>
+                                    <p className="text-xs text-neutral-500 tracking-tight">Help people recognize you</p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-neutral-300 ml-1">First Name</label>
                                     <GlassInputWrapper>
-                                        <input required name="firstName" placeholder="John" className="w-full bg-transparent p-4 text-sm focus:outline-none" />
+                                        <input
+                                            required
+                                            name="firstName"
+                                            placeholder="John"
+                                            defaultValue={prefilledData.firstName}
+                                            className="w-full bg-transparent p-4 text-sm focus:outline-none"
+                                        />
                                     </GlassInputWrapper>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-neutral-300 ml-1">Last Name</label>
                                     <GlassInputWrapper>
-                                        <input required name="lastName" placeholder="Doe" className="w-full bg-transparent p-4 text-sm focus:outline-none" />
+                                        <input
+                                            required
+                                            name="lastName"
+                                            placeholder="Doe"
+                                            defaultValue={prefilledData.lastName}
+                                            className="w-full bg-transparent p-4 text-sm focus:outline-none"
+                                        />
                                     </GlassInputWrapper>
                                 </div>
                             </div>
@@ -279,6 +332,7 @@ export default function OnboardingPage() {
                                         required
                                         name="username"
                                         placeholder="johndoe"
+                                        defaultValue={prefilledData.username}
                                         minLength={3}
                                         className="w-full bg-transparent p-4 text-sm focus:outline-none"
                                     />

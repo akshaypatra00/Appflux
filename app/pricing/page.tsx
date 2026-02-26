@@ -1,14 +1,15 @@
+"use client";
+
 import { PricingSection } from '@/components/ui/pricing-section';
 import { Navbar } from '@/components/Navbar';
-import { createClient } from '@/lib/supabase/server';
+import { useAuth } from '@/components/auth-provider';
 
-export default async function PricingPage() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export default function PricingPage() {
+    const { user } = useAuth();
 
     return (
         <div className="h-screen w-full bg-black overflow-hidden flex flex-col">
-            <Navbar user={user} />
+            <Navbar user={user as any} />
             <div className="flex-1 flex items-center justify-center">
                 <PricingSection />
             </div>

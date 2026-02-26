@@ -1,20 +1,25 @@
-
-import { StoreGrid } from "@/components/store/StoreGrid"
 import { createClient } from "@/lib/supabase/server"
+import { StoreGrid } from "@/components/store/StoreGrid"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = 'force-dynamic';
 
 export default async function StorePage() {
-    // 1. Fetch apps from Supabase
     const supabase = await createClient();
-    const { data: apps, error } = await supabase
-        .from('apps')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let apps: any[] = [];
+    let error = null;
 
-    if (error) {
-        console.error("Error fetching apps:", error);
+    try {
+        const { data, error: fetchError } = await supabase
+            .from('apps')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (fetchError) throw fetchError;
+        apps = data || [];
+    } catch (err: any) {
+        console.error("Supabase fetch error:", err);
+        error = { message: "Failed to fetch apps from Supabase. Ensure your table 'apps' exists." };
     }
 
     const isConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'placeholder';

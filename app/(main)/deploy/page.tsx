@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FolderUp, Github, Loader2, Search, GitBranch, ChevronDown, Terminal, Globe, Layout, Database, AlertCircle, Share2, Store, CheckCircle, Package, UploadCloud, Image as ImageIcon, ExternalLink } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
+import { auth } from '@/lib/firebase';
+import { createClient } from '@/lib/supabase/client';
+import { GithubAuthProvider, signInWithPopup, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/components/auth-provider';
 
 // Types for form state
@@ -35,6 +37,9 @@ interface DeployState {
         apkUrl: string;
         description: string;
         source: 'release' | 'codebase' | 'built';
+        iconFile: File | null; // Added for Firebase upload
+        screenshotFiles: File[]; // Added for Firebase upload
+        category: string; // Added for Firebase upload
     };
     files: {
         icon: File | null;
@@ -79,10 +84,9 @@ function DeployPageContent() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showAllRepos, setShowAllRepos] = useState(false); // Toggle state
 
-    const supabase = createClient();
     const router = useRouter();
     const searchParams = useSearchParams();
-
+    const supabase = createClient();
     const { user, loading: authLoading } = useAuth();
 
     // Check for existing GitHub session
@@ -104,16 +108,13 @@ function DeployPageContent() {
                 window.history.replaceState({}, '', window.location.pathname);
             }
 
-            const { data: { session } } = await supabase.auth.getSession();
+            // checkGithubConnection - Supabase auth removed due to regional outage.
+            // Using PAT as primary connection method for now.
 
             // Check for saved PAT
             const savedPat = localStorage.getItem(`github_pat_${user.uid}`);
 
-            // For now, we still check Supabase session for GitHub token if available
-            if (session?.provider_token) {
-                setState(prev => ({ ...prev, githubConnected: true, isLoadingRepos: true, error: null, showPatInput: false }));
-                fetchGithubRepos(session.provider_token);
-            } else if (savedPat) {
+            if (savedPat) {
                 setState(prev => ({ ...prev, githubConnected: true, isLoadingRepos: true, patToken: savedPat, error: null, showPatInput: false }));
                 fetchGithubRepos(savedPat);
             }
@@ -123,50 +124,35 @@ function DeployPageContent() {
 
     const fetchGithubRepos = async (token: string) => {
         try {
-            // Fetch more repos to increase chance of finding mobile apps after filtering
+            // Fetch more repos with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
             const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/vnd.github.v3+json',
-                }
+                },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             if (res.ok) {
                 const allRepos = await res.json();
-
-                // Filter for Mobile App Languages: Dart, Java, Kotlin, Swift, Objective-C
+                // ... filtering logic ...
                 const mobileLanguages = ['Dart', 'Java', 'Kotlin', 'Swift', 'Objective-C'];
-
-                // Enhanced filtering: Check language OR keywords in name/description/topics
                 const filteredRepos = allRepos.filter((repo: any) => {
                     const lang = repo.language;
-                    const isMobileLang = mobileLanguages.includes(lang);
-
-                    const name = repo.name.toLowerCase();
-                    const desc = repo.description?.toLowerCase() || '';
-                    const topics = repo.topics || [];
-
-                    // Broad keyword search for "mobile" projects identified as other languages (e.g. HTML, Shell)
-                    // This catches Flutter projects identified as HTML
-                    const hasMobileKeywords = [
-                        'flutter', 'react-native', 'android', 'ios', 'apk', 'mobile app'
-                    ].some(keyword =>
-                        name.includes(keyword) ||
-                        desc.includes(keyword) ||
-                        topics.includes(keyword)
+                    const hasMobileKeywords = ['flutter', 'react-native', 'android', 'ios', 'apk', 'mobile app'].some(k =>
+                        repo.name.toLowerCase().includes(k) || (repo.description?.toLowerCase() || '').includes(k)
                     );
-
-                    // React Native heuristic
-                    const isJsTs = lang === 'JavaScript' || lang === 'TypeScript';
-                    const isReactNative = isJsTs && hasMobileKeywords;
-
-                    return isMobileLang || isReactNative || hasMobileKeywords;
+                    return mobileLanguages.includes(lang) || hasMobileKeywords;
                 });
 
                 setState(prev => ({
                     ...prev,
-                    repositories: filteredRepos, // Default view
-                    allRepositories: allRepos,   // Backup view
+                    repositories: filteredRepos,
+                    allRepositories: allRepos,
                     isLoadingRepos: false,
                     githubConnected: true
                 }));
@@ -186,18 +172,46 @@ function DeployPageContent() {
 
     const handleConnectGithub = async () => {
         setState(prev => ({ ...prev, isLinking: true, error: null }));
+        const provider = new GithubAuthProvider();
+        provider.addScope('repo');
+        provider.addScope('read:user');
+
         try {
-            const { data, error } = await supabase.auth.linkIdentity({
-                provider: 'github',
-                options: {
-                    redirectTo: `${window.location.origin}/deploy`,
-                    scopes: 'repo',
-                },
-            });
-            if (error) throw error;
-            if (data?.url) window.location.href = data.url;
+            if (!user) throw new Error("User not authenticated");
+
+            let result;
+            try {
+                // Try linking if already logged in (standard for Firebase)
+                result = await linkWithPopup(user, provider);
+            } catch (linkError: any) {
+                // If already linked or error, try sign in with popup to get token
+                if (linkError.code === 'auth/credential-already-in-use' || linkError.code === 'auth/provider-already-linked') {
+                    result = await signInWithPopup(auth, provider);
+                } else {
+                    throw linkError;
+                }
+            }
+
+            const credential = GithubAuthProvider.credentialFromResult(result);
+            const token = credential?.accessToken;
+
+            if (token) {
+                localStorage.setItem(`github_pat_${user.uid}`, token);
+                setState(prev => ({ ...prev, githubConnected: true, isLoadingRepos: true, patToken: token, isLinking: false }));
+                fetchGithubRepos(token);
+            } else {
+                throw new Error("Failed to obtain GitHub access token");
+            }
         } catch (error: any) {
-            setState(prev => ({ ...prev, isLinking: false, error: error.message }));
+            console.error("GitHub Auth Error:", error);
+            setState(prev => ({
+                ...prev,
+                isLinking: false,
+                showPatInput: true,
+                error: error.code === 'auth/popup-closed-by-user'
+                    ? "Popup was closed before finishing. You can also use a Personal Access Token below."
+                    : `Connection failed: ${error.message}. Please use a PAT instead.`
+            }));
         }
     };
 
@@ -217,9 +231,8 @@ function DeployPageContent() {
             if (!res.ok) throw new Error('Invalid Token');
 
             // Save to localStorage for persistence
-            const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                localStorage.setItem(`github_pat_${user.id}`, state.patToken);
+                localStorage.setItem(`github_pat_${user.uid}`, state.patToken);
             }
 
             fetchGithubRepos(state.patToken);
@@ -251,7 +264,8 @@ function DeployPageContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     repoName: repo.name,
-                    owner: repo.owner.login
+                    owner: repo.owner.login,
+                    githubToken: state.patToken // Pass PAT token to bypass Supabase session dependency
                 })
             });
 
@@ -267,7 +281,10 @@ function DeployPageContent() {
                         version: data.version,
                         apkUrl: data.apkUrl,
                         description: data.description || '',
-                        source: data.source
+                        source: data.source,
+                        iconFile: null, // Default for existing APK
+                        screenshotFiles: [], // Default for existing APK
+                        category: prev.config.category,
                     }
                 }));
             } else {
@@ -376,7 +393,10 @@ function DeployPageContent() {
                         version: '1.0.0', // Generated version
                         apkUrl: data.apkUrl,
                         description: prev.config.description || 'Newly built application',
-                        source: 'built'
+                        source: 'built',
+                        iconFile: prev.files.icon,
+                        screenshotFiles: prev.files.screenshots,
+                        category: prev.config.category,
                     }
                 }));
             }, 2000); // Fake delay for UX
@@ -392,39 +412,78 @@ function DeployPageContent() {
         setState(prev => ({ ...prev, step: 'publishing', error: null }));
 
         try {
-            const formData = new FormData();
-            formData.append('name', state.config.projectName);
-            formData.append('version', state.appDetails.version);
-            formData.append('description', state.config.description);
-            formData.append('apkUrl', state.appDetails.apkUrl);
-            formData.append('category', state.config.category);
+            if (!user) throw new Error('You must be logged in to publish');
 
-            if (state.files.icon) {
-                formData.append('iconFile', state.files.icon);
-            }
-            state.files.screenshots.forEach((file) => {
-                formData.append('screenshotFiles', file);
-            });
+            // 1. Upload Icon to Supabase Storage
+            let iconUrl = null;
+            if (state.appDetails.iconFile) {
+                const fileName = `${user.uid}/${Date.now()}-icon-${state.appDetails.iconFile.name.replace(/\s+/g, '-')}`;
+                const { error: iconError } = await supabase.storage
+                    .from('app-assets')
+                    .upload(fileName, state.appDetails.iconFile);
 
-            const res = await fetch('/api/deploy/publish', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Publish failed');
+                if (iconError) throw iconError;
+                iconUrl = supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl;
             }
 
-            const data = await res.json();
+            // 2. Upload Screenshots to Supabase Storage
+            let screenshotUrls: string[] = [];
+            if (state.appDetails.screenshotFiles && state.appDetails.screenshotFiles.length > 0) {
+                for (const file of state.appDetails.screenshotFiles) {
+                    const fileName = `${user.uid}/${Date.now()}-screen-${file.name.replace(/\s+/g, '-')}`;
+                    const { error: sError } = await supabase.storage
+                        .from('app-assets')
+                        .upload(fileName, file);
+
+                    if (sError) {
+                        console.error('Screenshot upload error:', sError);
+                        continue;
+                    }
+                    screenshotUrls.push(supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl);
+                }
+            }
+
+            // 3. Create App in Supabase
+            const appData = {
+                name: state.appDetails.name,
+                version: state.appDetails.version || '1.0.0',
+                description: state.appDetails.description,
+                github_download_url: state.appDetails.apkUrl,
+                icon_url: iconUrl,
+                screenshot_urls: screenshotUrls,
+                category: state.appDetails.category || 'Utilities',
+                user_id: user.uid,
+                download_count: 0,
+                views: 0,
+            };
+
+            const { data: newApp, error: appError } = await supabase
+                .from("apps")
+                .insert(appData)
+                .select()
+                .single();
+
+            if (appError) throw appError;
+
+            // 4. Record Deployment in Supabase
+            const { error: deployError } = await supabase
+                .from("deployments")
+                .insert({
+                    app_id: newApp.id,
+                    user_id: user.uid,
+                    status: 'success',
+                });
+
+            if (deployError) throw deployError;
 
             setState(prev => ({
                 ...prev,
                 step: 'success',
-                publishedApp: data.app
+                publishedApp: newApp
             }));
 
         } catch (err: any) {
+            console.error("Publishing error:", err);
             setState(prev => ({ ...prev, step: 'review', error: err.message }));
         }
     }
@@ -490,7 +549,7 @@ function DeployPageContent() {
                                                 <div className="text-center">
                                                     <h4 className="font-semibold text-sm">Connect via Token</h4>
                                                     <p className="text-xs text-zinc-500 mt-1">
-                                                        Since this GitHub account is used elsewhere, please use a Personal Access Token (Classic).
+                                                        If you prefer not to use OAuth, you can use a Personal Access Token (Classic) with 'repo' scope.
                                                     </p>
                                                 </div>
 

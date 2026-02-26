@@ -1,30 +1,36 @@
-
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server"
 import { Star, ArrowLeft, Globe, Shield } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AppActions } from "@/components/store/AppActions";
 import { ViewTracker } from "@/components/store/ViewTracker";
+import { SmartIcon } from "@/components/store/SmartIcon";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AppDetailPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<{ app?: string }> }) {
     const { id } = await params;
-
-    // Track view immediately
-    // Since we are in RSC, we can't trigger client side effect easily without a client component
-    // But we can include the ViewTracker component which mounts on client
-
     const supabase = await createClient();
 
-    const { data: app, error } = await supabase
-        .from('apps')
-        .select('*')
-        .eq('id', id)
-        .single();
+    let app = null;
+    try {
+        const { data, error } = await supabase
+            .from("apps")
+            .select("*")
+            .eq("id", id)
+            .single();
 
-    if (error || !app) {
+        if (error) {
+            console.error("Supabase fetch error:", error);
+        } else {
+            app = data;
+        }
+    } catch (err) {
+        console.error("Error fetching app details:", err);
+    }
+
+    if (!app) {
         notFound();
     }
 
@@ -50,19 +56,7 @@ export default async function AppDetailPage({ params, searchParams }: { params: 
                     {/* Left Column: Icon & Actions */}
                     <div className="flex flex-col gap-6">
                         <div className="w-56 self-center md:w-full aspect-square bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl relative">
-                            {app.icon_url ? (
-                                <Image
-                                    src={app.icon_url}
-                                    alt={app.name}
-                                    fill
-                                    className="object-cover"
-                                    unoptimized // Fix for external images if not configured in next.config.js
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-4xl font-bold">
-                                    {app.name.charAt(0)}
-                                </div>
-                            )}
+                            <SmartIcon src={app.icon_url} name={app.name} />
                         </div>
 
                         <AppActions app={app} />
@@ -74,7 +68,7 @@ export default async function AppDetailPage({ params, searchParams }: { params: 
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-zinc-500">Size</span>
-                                <span className="text-zinc-300">~15 MB</span>
+                                <span className="text-zinc-300">{app.size_formatted || "~15 MB"}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-zinc-500">Downloads</span>

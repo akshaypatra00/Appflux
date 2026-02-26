@@ -1,8 +1,10 @@
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-    return await updateSession(request)
+    // Disabled Supabase session updates while using Firebase Auth to avoid regional network timeouts
+    // return await updateSession(request)
+    return NextResponse.next()
 }
 
 export const config = {

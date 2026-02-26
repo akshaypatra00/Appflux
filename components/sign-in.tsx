@@ -119,7 +119,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/store');
+      router.push('/onboarding');
     } catch (e: any) {
       setError(e.message);
       setIsLoading(false);
@@ -131,7 +131,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     const provider = new GithubAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/store');
+      router.push('/onboarding');
     } catch (e: any) {
       setError(e.message);
       setIsLoading(false);

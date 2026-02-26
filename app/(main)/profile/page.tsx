@@ -39,40 +39,52 @@ export default function ProfilePage() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const supabase = createClient();
     const router = useRouter();
+    const supabase = createClient();
 
     const fetchProfile = async () => {
         if (!user) return;
 
         setAvatarUrl(user.photoURL || getUserAvatar(user));
 
-        // Fetch Profile from 'profiles' table using Firebase UID
-        const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.uid)
-            .single();
+        try {
+            // Fetch Profile from Supabase using Firebase UID
+            const { data: profileData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.uid)
+                .single();
 
-        if (profileData) {
-            setProfile({
-                username: profileData.username || '',
-                first_name: profileData.first_name || '',
-                last_name: profileData.last_name || '',
-                full_name: profileData.full_name || '',
-                email: profileData.email || user.email || '',
-            });
-            if (profileData.avatar_url) {
-                setAvatarUrl(profileData.avatar_url);
+            if (profileData) {
+                setProfile({
+                    username: profileData.username || '',
+                    first_name: profileData.first_name || '',
+                    last_name: profileData.last_name || '',
+                    full_name: profileData.full_name || '',
+                    email: profileData.email || user.email || '',
+                });
+                if (profileData.avatar_url) {
+                    setAvatarUrl(profileData.avatar_url);
+                }
+            } else {
+                setProfile({
+                    username: '',
+                    first_name: '',
+                    last_name: '',
+                    full_name: user.displayName || '',
+                    email: user.email || '',
+                })
             }
-        } else {
+        } catch (err) {
+            console.error("Profile fetch error:", err);
+            // Fallback to basic Firebase data
             setProfile({
                 username: '',
                 first_name: '',
                 last_name: '',
                 full_name: user.displayName || '',
                 email: user.email || '',
-            })
+            });
         }
         setLoading(false);
     };
@@ -85,7 +97,7 @@ export default function ProfilePage() {
                 fetchProfile();
             }
         }
-    }, [user, authLoading, router, supabase]);
+    }, [user, authLoading, router]);
 
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files || event.target.files.length === 0 || !user) return;
@@ -98,15 +110,14 @@ export default function ProfilePage() {
         setMessage(null);
 
         try {
-            const { error: uploadError } = await supabase.storage
+            // Upload to Supabase Storage
+            const { data, error: uploadError } = await supabase.storage
                 .from('app-assets')
-                .upload(fileName, file, { upsert: true });
+                .upload(fileName, file);
 
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('app-assets')
-                .getPublicUrl(fileName);
+            const publicUrl = supabase.storage.from('app-assets').getPublicUrl(fileName).data.publicUrl;
 
             // Update Firebase Profile
             const { updateProfile } = await import('firebase/auth');
@@ -114,20 +125,17 @@ export default function ProfilePage() {
                 photoURL: publicUrl
             });
 
-            // Update Profiles Table
-            const { error: updateProfileError } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.uid,
-                    avatar_url: publicUrl,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (updateProfileError) throw updateProfileError;
+            // Update Profiles Collection in Supabase
+            await supabase.from('profiles').upsert({
+                id: user.uid,
+                avatar_url: publicUrl,
+                updated_at: new Date().toISOString()
+            });
 
             setAvatarUrl(publicUrl);
             setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
         } catch (error: any) {
+            console.error("Upload error:", error);
             setMessage({ type: 'error', text: error.message || 'Error updating profile picture' });
         } finally {
             setUploading(false);
@@ -148,13 +156,12 @@ export default function ProfilePage() {
                 last_name: profile.last_name,
                 full_name: `${profile.first_name} ${profile.last_name}`.trim(),
                 updated_at: new Date().toISOString(),
+                email: user.email || '',
             };
 
-            const { error } = await supabase
-                .from('profiles')
-                .upsert(updates);
+            const { error: updateError } = await supabase.from('profiles').upsert(updates);
 
-            if (error) throw error;
+            if (updateError) throw updateError;
 
             // Optional: Update Firebase displayName
             const { updateProfile } = await import('firebase/auth');
@@ -164,6 +171,7 @@ export default function ProfilePage() {
 
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
         } catch (error: any) {
+            console.error("Update profile error:", error);
             setMessage({ type: 'error', text: error.message || 'Error updating profile' });
         } finally {
             setSaving(false);

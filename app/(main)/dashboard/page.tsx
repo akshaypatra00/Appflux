@@ -1,7 +1,6 @@
 "use client";
 
 import DashboardContent from "@/components/dashboard-with-collapsible-sidebar";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth-provider";

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import Image from "next/image";
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from "next/link";
-import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import {
@@ -88,7 +87,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

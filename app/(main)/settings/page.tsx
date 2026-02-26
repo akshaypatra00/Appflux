@@ -7,13 +7,11 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Bell, Shield, Eye, Moon, Sun, Monitor } from "lucide-react"
 import { useTheme } from "next-themes"
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner' // Assuming sonner is available or use standard alert
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
-    const supabase = createClient()
 
     const [notifications, setNotifications] = useState({
         email: true,

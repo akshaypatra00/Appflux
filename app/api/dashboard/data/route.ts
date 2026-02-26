@@ -33,11 +33,17 @@ export async function GET(request: Request) {
         const deployments = deploymentsData || []
 
         // 3. Fetch user profile
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", uid)
-            .single()
+        let profile = null;
+        try {
+            const { data: profileData, error: profileError } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", uid)
+                .single()
+            if (!profileError) profile = profileData;
+        } catch (e) {
+            console.error("Profile fetch error in dashboard:", e);
+        }
 
         // Calculate stats
         const totalApps = apps.length

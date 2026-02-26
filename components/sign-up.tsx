@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { auth } from '@/lib/firebase';
 import {
     createUserWithEmailAndPassword,
@@ -94,21 +93,27 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             });
 
             console.log("Firebase Auth success, creating Supabase profile...");
-            const supabase = createClient();
+            // 3. Create profile via our proxy API
+            try {
+                const profileRes = await fetch('/api/user/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: user.uid,
+                        email,
+                        first_name: firstName,
+                        last_name: lastName,
+                        username: username,
+                        full_name: `${firstName} ${lastName}`.trim(),
+                    })
+                });
 
-            // 3. Create profile in Supabase
-            const { error: profileError } = await supabase.from('profiles').insert({
-                id: user.uid,
-                email,
-                first_name: firstName,
-                last_name: lastName,
-                username: username,
-                full_name: `${firstName} ${lastName}`.trim(),
-            });
-
-            if (profileError) {
-                console.error("Supabase profile error:", profileError);
-                // Even if profile fails, user is created in Firebase. 
+                if (!profileRes.ok) {
+                    const profileErr = await profileRes.json();
+                    console.error("Profile proxy error:", profileErr);
+                }
+            } catch (err) {
+                console.error("Failed to call profile proxy:", err);
             }
 
             // 4. Send Verification Email with redirect to onboarding

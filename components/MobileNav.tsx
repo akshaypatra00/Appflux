@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
-import { createClient } from "@/lib/supabase/client"
 
 interface MobileNavProps {
     user?: any
@@ -13,7 +12,6 @@ interface MobileNavProps {
 
 export function MobileNav({ user }: MobileNavProps) {
     const [isOpen, setIsOpen] = useState(false)
-    const supabase = createClient()
 
     const toggleMenu = () => setIsOpen(!isOpen)
 
